@@ -98,7 +98,7 @@ struct CollectionDetailView: View {
 
     private func open(_ item: ContentItem) {
         container.contentRepository.markViewed(item)
-        router.push(.contentDetail(item.id))
+        router.push(.viewer(for: item))
     }
 
     private func toggleFavorite(_ item: ContentItem) {

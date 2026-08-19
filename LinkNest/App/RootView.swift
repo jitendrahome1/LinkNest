@@ -32,7 +32,7 @@ struct RootView: View {
         .animation(.easeInOut(duration: 0.3), value: appState.phase)
         .modifier(ToastOverlay())
         .onOpenURL { url in
-            DeepLinkHandler(router: router).handle(url)
+            DeepLinkHandler(router: router, container: container).handle(url)
         }
     }
 }

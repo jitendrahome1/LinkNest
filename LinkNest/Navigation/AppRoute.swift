@@ -11,6 +11,18 @@ enum AppRoute: Hashable {
     case collectionDetail(UUID)
     case saveLink(prefill: String?)
     case search
+    case videoPlayer(UUID)
+    case pdfReader(UUID)
+
+    /// Routes a saved item to its native viewer — video and PDF get the
+    /// immersive player/reader, everything else keeps the standard detail screen.
+    static func viewer(for item: ContentItem) -> AppRoute {
+        switch item.contentType {
+        case .video: .videoPlayer(item.id)
+        case .pdf: .pdfReader(item.id)
+        default: .contentDetail(item.id)
+        }
+    }
 }
 
 enum AppTab: String, CaseIterable, Identifiable {

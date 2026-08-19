@@ -59,6 +59,8 @@ struct MainTabView: View {
         case .collectionDetail(let id): CollectionDetailView(collectionID: id)
         case .saveLink(let prefill): SaveLinkView(prefillURL: prefill)
         case .search: SearchView()
+        case .videoPlayer(let id): VideoPlayerView(itemID: id)
+        case .pdfReader(let id): PDFReaderView(itemID: id)
         }
     }
 }

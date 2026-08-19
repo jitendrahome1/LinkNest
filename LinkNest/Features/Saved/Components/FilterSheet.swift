@@ -52,7 +52,7 @@ private struct FilterSheetContent: View {
                     }
                 }
                 section(String(localized: "filters.type", defaultValue: "Content Type")) {
-                    ForEach([ContentType.video, .article, .post]) { type in
+                    ForEach([ContentType.video, .article, .post, .pdf]) { type in
                         LNFilterChip(label: type.displayName,
                                      isSelected: vm.filter.types.contains(type)) {
                             toggle(&vm.filter.types, type)

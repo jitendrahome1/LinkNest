@@ -8,6 +8,7 @@ import Foundation
 @MainActor
 struct DeepLinkHandler {
     let router: AppRouter
+    let container: AppContainer
 
     func handle(_ url: URL) {
         guard url.scheme == "linknest" else { return }
@@ -16,9 +17,10 @@ struct DeepLinkHandler {
 
         switch kind {
         case "content":
-            if parts.count > 1, let id = UUID(uuidString: parts[1]) {
+            if parts.count > 1, let id = UUID(uuidString: parts[1]),
+               let item = container.contentRepository.item(id: id) {
                 router.switchTab(.home)
-                router.push(.contentDetail(id))
+                router.push(.viewer(for: item))
             }
         case "collection":
             if parts.count > 1, let id = UUID(uuidString: parts[1]) {

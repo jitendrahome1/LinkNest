@@ -58,7 +58,11 @@ enum MockSeeder {
             .init(url: "https://facebook.com/share/p/9aK2m", title: "Why side projects die", thumbnailHue: 60, platform: .facebook, contentType: .post, creatorName: "Builders Club", createdAt: ago(340), collection: career, tags: [tags["Career"]!, tags["Focus"]!]),
             .init(url: "https://fieldnotes.blog/kyoto-temples", title: "Kyoto's quiet temples: a walking route", thumbnailHue: 120, platform: .website, contentType: .article, creatorName: "Field Notes", createdAt: ago(342), collection: travel, tags: [tags["Travel"]!, tags["Japan"]!]),
             .init(url: "https://mindstack.blog/learning-to-learn", title: "Learning How to Learn, condensed", thumbnailHue: 100, platform: .website, contentType: .article, creatorName: "MindStack", createdAt: ago(344), isWatchLater: true, collection: learning, tags: [tags["Learning"]!]),
-            .init(url: "https://instagram.com/p/devhabits", title: "Morning routines of focused engineers", thumbnailHue: 50, platform: .instagram, contentType: .post, creatorName: "@dev.habits", createdAt: ago(510), collection: career, tags: [tags["Productivity"]!])
+            .init(url: "https://instagram.com/p/devhabits", title: "Morning routines of focused engineers", thumbnailHue: 50, platform: .instagram, contentType: .post, creatorName: "@dev.habits", createdAt: ago(510), collection: career, tags: [tags["Productivity"]!]),
+
+            // Real, directly-playable sample items for the video/PDF viewers.
+            .init(url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4", title: "Sample Clip — Flower", thumbnailHue: 205, platform: .website, contentType: .video, creatorName: "MDN Web Docs", duration: "0:10", createdAt: ago(1), collection: ios, tags: [tags["SwiftUI"]!]),
+            .init(url: "https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf", title: "TraceMonkey: A JIT Compiler for JavaScript", thumbnailHue: 15, platform: .website, contentType: .pdf, creatorName: "Mozilla Research", createdAt: ago(3), collection: learning, tags: [tags["Engineering"]!])
         ]
         items.forEach { context.insert($0) }
 

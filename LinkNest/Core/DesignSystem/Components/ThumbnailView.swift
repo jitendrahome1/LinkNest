@@ -14,12 +14,18 @@ struct ThumbnailView: View {
     var thumbnailURL: String?
     var cornerRadius: CGFloat = LNRadius.thumbnail
     var badgeScale: CGFloat = 1
+    /// When .pdf, the corner badge reads "PDF" instead of the platform monogram.
+    var contentType: ContentType = .other
 
     var body: some View {
         ZStack(alignment: .bottom) {
             gradient
             HStack {
-                badge(text: platform.monogram, background: Color(hex: platform.badgeHex))
+                if contentType == .pdf {
+                    badge(text: "PDF", background: Color(hex: 0xB3443C))
+                } else {
+                    badge(text: platform.monogram, background: Color(hex: platform.badgeHex))
+                }
                 Spacer()
                 if let duration {
                     badge(text: duration, background: Color(hex: 0x0A0A10, alpha: 0.55))

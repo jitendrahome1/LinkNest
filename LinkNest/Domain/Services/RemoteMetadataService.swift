@@ -27,6 +27,9 @@ struct RemoteMetadataService: MetadataService {
         }
 
         let platform = ContentPlatform.detect(from: normalized)
+        if pageURL.pathExtension.lowercased() == "pdf" {
+            return pdfMetadata(for: pageURL)
+        }
         if platform == .youtube, let metadata = await fetchYouTube(pageURL) {
             return metadata
         }
@@ -34,6 +37,22 @@ struct RemoteMetadataService: MetadataService {
             return metadata
         }
         return try await fallback.fetchMetadata(for: normalized)
+    }
+
+    /// PDFs are rendered by PDFReaderView itself, so metadata only needs a
+    /// readable title derived from the filename — no HTML/oEmbed to parse.
+    private func pdfMetadata(for url: URL) -> LinkMetadata {
+        let filename = url.deletingPathExtension().lastPathComponent
+            .replacingOccurrences(of: "-", with: " ")
+            .replacingOccurrences(of: "_", with: " ")
+        let title = filename.isEmpty ? (url.host ?? "Document") : filename.capitalized
+        return LinkMetadata(title: title,
+                            creatorName: url.host ?? "Document",
+                            platform: .website,
+                            contentType: .pdf,
+                            duration: nil,
+                            thumbnailHue: Self.stableHue(for: url),
+                            thumbnailURL: nil)
     }
 
     // MARK: - YouTube oEmbed
@@ -67,7 +86,12 @@ struct RemoteMetadataService: MetadataService {
         request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
                          forHTTPHeaderField: "User-Agent")
         guard let (data, response) = try? await session.data(for: request),
-              (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+              let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
+
+        // Some PDFs are served from extensionless URLs; catch them by MIME type too.
+        if (http.value(forHTTPHeaderField: "Content-Type") ?? "").lowercased().contains("application/pdf") {
+            return pdfMetadata(for: url)
+        }
 
         let html = String(data: data.prefix(512 * 1024), encoding: .utf8)
             ?? String(data: data.prefix(512 * 1024), encoding: .isoLatin1)

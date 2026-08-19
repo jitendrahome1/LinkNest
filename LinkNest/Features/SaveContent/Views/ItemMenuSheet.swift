@@ -26,7 +26,7 @@ struct ItemMenuSheet: View {
                 LNGroupCard {
                     row(String(localized: "menu.open", defaultValue: "Open")) {
                         container.contentRepository.markViewed(item)
-                        router.dismissSheetThenPush(.contentDetail(item.id))
+                        router.dismissSheetThenPush(.viewer(for: item))
                     }
                     LNRowSeparator()
                     row(item.isFavorite

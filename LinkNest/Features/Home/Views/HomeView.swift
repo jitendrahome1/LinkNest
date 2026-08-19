@@ -153,7 +153,7 @@ struct HomeView: View {
 
     private func open(_ item: ContentItem) {
         container.contentRepository.markViewed(item)
-        router.push(.contentDetail(item.id))
+        router.push(.viewer(for: item))
     }
 
     private func toggleFavorite(_ item: ContentItem) {
@@ -231,7 +231,7 @@ private struct ExploreCard: View {
         Button(action: onOpen) {
             HStack(spacing: 10) {
                 ThumbnailView(hue: item.thumbnailHue, platform: item.platform,
-                              duration: nil, thumbnailURL: item.thumbnailURL, cornerRadius: 9, badgeScale: 0.9)
+                              duration: nil, thumbnailURL: item.thumbnailURL, cornerRadius: 9, badgeScale: 0.9, contentType: item.contentType)
                     .frame(width: 64, height: 48)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.title)

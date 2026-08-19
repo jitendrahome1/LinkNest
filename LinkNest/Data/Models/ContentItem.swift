@@ -57,7 +57,7 @@ enum ContentPlatform: String, Codable, CaseIterable, Identifiable {
 }
 
 enum ContentType: String, Codable, CaseIterable, Identifiable {
-    case video, article, post, website, other
+    case video, article, post, website, pdf, other
     var id: String { rawValue }
     var displayName: String {
         switch self {
@@ -65,6 +65,7 @@ enum ContentType: String, Codable, CaseIterable, Identifiable {
         case .article: "Article"
         case .post: "Post"
         case .website: "Website"
+        case .pdf: "PDF"
         case .other: "Other"
         }
     }
@@ -74,6 +75,7 @@ enum ContentType: String, Codable, CaseIterable, Identifiable {
         case .article: "Articles"
         case .post: "Posts"
         case .website: "Websites"
+        case .pdf: "PDFs"
         case .other: "Other"
         }
     }
@@ -104,6 +106,15 @@ final class ContentItem {
     var isWatchLater: Bool
     var isCompleted: Bool
     var isArchived: Bool
+
+    // Video playback progress (VideoPlayerView).
+    var playbackPositionSeconds: Double = 0
+    var playbackDurationSeconds: Double = 0
+
+    // PDF reading progress (PDFReaderView).
+    var currentPage: Int = 1
+    var totalPages: Int = 0
+    var bookmarkedPages: [Int] = []
 
     var collection: ContentCollection?
     @Relationship(inverse: \Tag.items) var tags: [Tag]
@@ -179,5 +190,26 @@ extension ContentItem {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .short
         return formatter.localizedString(for: lastViewedAt, relativeTo: .now)
+    }
+
+    /// Fraction of the video watched, 0...1.
+    var playbackProgress: Double {
+        guard playbackDurationSeconds > 0 else { return 0 }
+        return min(1, max(0, playbackPositionSeconds / playbackDurationSeconds))
+    }
+
+    /// Show a "Continue from mm:ss" resume prompt only for a real, unfinished position.
+    var hasResumablePlayback: Bool {
+        !isCompleted && playbackPositionSeconds > 5 && playbackDurationSeconds > 0 && playbackProgress < 0.97
+    }
+
+    /// Fraction of the PDF read, 0...1.
+    var readingProgress: Double {
+        guard totalPages > 0 else { return 0 }
+        return min(1, max(0, Double(currentPage) / Double(totalPages)))
+    }
+
+    var hasResumableReading: Bool {
+        !isCompleted && currentPage > 1 && totalPages > 0
     }
 }

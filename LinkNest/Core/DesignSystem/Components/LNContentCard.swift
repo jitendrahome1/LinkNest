@@ -16,7 +16,7 @@ struct LNContentCardLarge: View {
             VStack(alignment: .leading, spacing: 0) {
                 ThumbnailView(hue: item.thumbnailHue, platform: item.platform,
                               duration: item.duration, thumbnailURL: item.thumbnailURL,
-                              cornerRadius: 0, badgeScale: 1.2)
+                              cornerRadius: 0, badgeScale: 1.2, contentType: item.contentType)
                     .frame(height: 128)
                 VStack(alignment: .leading, spacing: 5) {
                     Text(item.title)
@@ -60,7 +60,7 @@ struct LNContentCardCompact: View {
         Button(action: onOpen) {
             HStack(spacing: 12) {
                 ThumbnailView(hue: item.thumbnailHue, platform: item.platform,
-                              duration: item.duration, thumbnailURL: item.thumbnailURL)
+                              duration: item.duration, thumbnailURL: item.thumbnailURL, contentType: item.contentType)
                     .frame(width: 94, height: 66)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.title)
@@ -118,7 +118,7 @@ struct LNContentCardGrid: View {
         Button(action: onOpen) {
             VStack(alignment: .leading, spacing: 0) {
                 ThumbnailView(hue: item.thumbnailHue, platform: item.platform,
-                              duration: nil, thumbnailURL: item.thumbnailURL, cornerRadius: 0)
+                              duration: nil, thumbnailURL: item.thumbnailURL, cornerRadius: 0, contentType: item.contentType)
                     .frame(height: 96)
                 VStack(alignment: .leading, spacing: 5) {
                     Text(item.title)

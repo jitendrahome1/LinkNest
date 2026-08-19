@@ -125,7 +125,7 @@ private struct SavedContent: View {
 
     private func open(_ item: ContentItem) {
         container.contentRepository.markViewed(item)
-        router.push(.contentDetail(item.id))
+        router.push(.viewer(for: item))
     }
 
     private func toggleFavorite(_ item: ContentItem) {
@@ -148,7 +148,7 @@ struct ItemContextMenu: ViewModifier {
         content.contextMenu {
             Button {
                 container.contentRepository.markViewed(item)
-                router.push(.contentDetail(item.id))
+                router.push(.viewer(for: item))
             } label: { Label(String(localized: "menu.open", defaultValue: "Open"), systemImage: "arrow.up.right.square") }
 
             Button {
