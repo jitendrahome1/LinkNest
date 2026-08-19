@@ -26,6 +26,7 @@ struct SaveLinkView: View {
                                           prefillURL: prefillURL)
             model.onError = { appState.showToast($0) }
             vm = model
+            if let prefillURL, !prefillURL.isEmpty { model.fetch() }
         }
         .toolbar(.hidden, for: .navigationBar)
     }

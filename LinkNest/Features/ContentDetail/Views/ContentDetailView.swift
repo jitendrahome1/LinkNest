@@ -122,18 +122,23 @@ private struct DetailContent: View {
     }
 
     private var notesCard: some View {
-        Text(item.notes.isEmpty
-             ? String(localized: "detail.addNote", defaultValue: "Add a note…")
-             : item.notes)
-            .font(.system(size: 14))
-            .lineSpacing(4)
-            .foregroundStyle(item.notes.isEmpty ? LNColor.tertiaryText : LNColor.primaryText)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(EdgeInsets(top: 13, leading: 14, bottom: 13, trailing: 14))
-            .background(LNColor.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: LNRadius.card, style: .continuous))
-            .modifier(CardShadow())
-
+        Button {
+            router.sheet = .editItem(item.id)
+        } label: {
+            Text(item.notes.isEmpty
+                 ? String(localized: "detail.addNote", defaultValue: "Add a note…")
+                 : item.notes)
+                .font(.system(size: 14))
+                .lineSpacing(4)
+                .foregroundStyle(item.notes.isEmpty ? LNColor.tertiaryText : LNColor.primaryText)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(EdgeInsets(top: 13, leading: 14, bottom: 13, trailing: 14))
+                .background(LNColor.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: LNRadius.card, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .modifier(CardShadow())
+        .accessibilityLabel(String(localized: "a11y.editNotes", defaultValue: "Edit notes"))
     }
 
     private var aiCard: some View {
@@ -210,11 +215,24 @@ private struct DetailContent: View {
 
     private var actionRow: some View {
         HStack(spacing: 9) {
-            DetailAction(systemImage: "square.and.arrow.up", label: String(localized: "action.share", defaultValue: "Share")) {
-                appState.showToast(String(localized: "toast.share", defaultValue: "Share sheet ships with the iOS build"))
+            ShareLink(item: URL(string: item.url) ?? URL(filePath: "/")) {
+                VStack(spacing: 5) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 16, weight: .medium))
+                    Text(String(localized: "action.share", defaultValue: "Share"))
+                        .font(.system(size: 10.5, weight: .medium))
+                }
+                .foregroundStyle(LNColor.primaryText)
+                .frame(maxWidth: .infinity)
+                .frame(height: 62)
+                .background(LNColor.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: LNRadius.card, style: .continuous))
             }
+            .buttonStyle(.plain)
+            .modifier(CardShadow())
+            .accessibilityLabel(String(localized: "action.share", defaultValue: "Share"))
             DetailAction(systemImage: "pencil", label: String(localized: "action.edit", defaultValue: "Edit")) {
-                appState.showToast(String(localized: "toast.editSoon", defaultValue: "Edit screen comes in the next round"))
+                router.sheet = .editItem(item.id)
             }
             DetailAction(systemImage: "archivebox", label: String(localized: "action.archive", defaultValue: "Archive")) {
                 container.deleteContent.archive(item)

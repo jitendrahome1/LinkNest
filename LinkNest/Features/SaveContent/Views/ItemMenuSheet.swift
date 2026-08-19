@@ -46,9 +46,20 @@ struct ItemMenuSheet: View {
                         dismiss()
                     }
                     LNRowSeparator()
-                    row(String(localized: "menu.share", defaultValue: "Share")) {
-                        dismiss()
-                        appState.showToast(String(localized: "toast.share", defaultValue: "Share sheet ships with the iOS build"))
+                    ShareLink(item: URL(string: item.url) ?? URL(filePath: "/")) {
+                        HStack {
+                            Text(String(localized: "menu.share", defaultValue: "Share"))
+                                .font(.system(size: 15))
+                                .foregroundStyle(LNColor.primaryText)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 15)
+                        .frame(height: 48)
+                    }
+                    .buttonStyle(.plain)
+                    LNRowSeparator()
+                    row(String(localized: "menu.edit", defaultValue: "Edit")) {
+                        router.sheet = .editItem(item.id)
                     }
                     LNRowSeparator()
                     row(String(localized: "menu.archive", defaultValue: "Archive")) {

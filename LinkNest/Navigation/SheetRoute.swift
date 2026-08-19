@@ -10,6 +10,7 @@ enum SheetRoute: Identifiable, Hashable {
     case sort
     case newCollection
     case itemMenu(UUID)
+    case editItem(UUID)
 
     var id: String {
         switch self {
@@ -18,6 +19,7 @@ enum SheetRoute: Identifiable, Hashable {
         case .sort: "sort"
         case .newCollection: "newCollection"
         case .itemMenu(let id): "itemMenu-\(id.uuidString)"
+        case .editItem(let id): "editItem-\(id.uuidString)"
         }
     }
 }

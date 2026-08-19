@@ -47,6 +47,7 @@ struct MainTabView: View {
             case .sort: SortSheet()
             case .newCollection: NewCollectionSheet()
             case .itemMenu(let id): ItemMenuSheet(itemID: id)
+            case .editItem(let id): EditItemSheet(itemID: id)
             }
         }
     }
