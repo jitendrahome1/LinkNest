@@ -25,14 +25,12 @@ struct QuickSaveSheet: View {
                 QuickOption(systemImage: "link",
                             title: String(localized: "quick.paste", defaultValue: "Paste Link"),
                             subtitle: String(localized: "quick.pasteSub", defaultValue: "Enter or paste any URL")) {
-                    dismiss()
-                    router.push(.saveLink(prefill: nil))
+                    router.dismissSheetThenPush(.saveLink(prefill: nil))
                 }
                 QuickOption(systemImage: "doc.on.clipboard",
                             title: String(localized: "quick.clipboard", defaultValue: "From Clipboard"),
                             subtitle: UIPasteboard.general.string ?? "youtube.com/watch?v=8kZ…") {
-                    dismiss()
-                    router.push(.saveLink(prefill: UIPasteboard.general.string ?? "https://www.youtube.com/watch?v=8kZq3xB"))
+                    router.dismissSheetThenPush(.saveLink(prefill: UIPasteboard.general.string ?? "https://www.youtube.com/watch?v=8kZq3xB"))
                 }
                 QuickOption(systemImage: "square.and.arrow.up",
                             title: String(localized: "quick.share", defaultValue: "Share from Another App"),
@@ -43,8 +41,7 @@ struct QuickSaveSheet: View {
                 QuickOption(systemImage: "pencil",
                             title: String(localized: "quick.manual", defaultValue: "Add Manually"),
                             subtitle: String(localized: "quick.manualSub", defaultValue: "Type the details yourself")) {
-                    dismiss()
-                    router.push(.saveLink(prefill: nil))
+                    router.dismissSheetThenPush(.saveLink(prefill: nil))
                 }
             }
             .padding(.top, 14)

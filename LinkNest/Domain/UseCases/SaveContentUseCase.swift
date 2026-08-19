@@ -25,6 +25,7 @@ struct SaveContentUseCase {
             url: input.url,
             title: input.metadata.title,
             description: input.metadata.description,
+            thumbnailURL: input.metadata.thumbnailURL,
             thumbnailHue: input.metadata.thumbnailHue,
             platform: input.metadata.platform,
             contentType: input.metadata.contentType,

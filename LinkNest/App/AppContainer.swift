@@ -50,7 +50,7 @@ final class AppContainer {
         collectionRepository = SwiftDataCollectionRepository(context: context)
         tagRepository = SwiftDataTagRepository(context: context)
 
-        metadataService = MockMetadataService()
+        metadataService = RemoteMetadataService(fallback: MockMetadataService())
         authService = MockAuthenticationService(keychain: KeychainManager())
         searchService = SearchService(content: contentRepository,
                                       collections: collectionRepository,

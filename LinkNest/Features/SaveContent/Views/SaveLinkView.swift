@@ -121,7 +121,7 @@ private struct SaveLinkContent: View {
     private func metadataCard(_ metadata: LinkMetadata) -> some View {
         HStack(spacing: 12) {
             ThumbnailView(hue: metadata.thumbnailHue, platform: metadata.platform,
-                          duration: nil, thumbnailURL: nil)
+                          duration: nil, thumbnailURL: metadata.thumbnailURL)
                 .frame(width: 104, height: 70)
             VStack(alignment: .leading, spacing: 4) {
                 Text(metadata.title)

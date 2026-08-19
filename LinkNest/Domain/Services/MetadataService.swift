@@ -14,6 +14,7 @@ struct LinkMetadata: Equatable, Sendable {
     var contentType: ContentType
     var duration: String?
     var thumbnailHue: Double
+    var thumbnailURL: String? = nil
     var description: String = ""
 }
 

@@ -40,7 +40,7 @@ struct MainTabView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .sheet(item: $router.sheet) { sheet in
+        .sheet(item: $router.sheet, onDismiss: { router.consumePendingRoute() }) { sheet in
             switch sheet {
             case .quickSave: QuickSaveSheet()
             case .filters: FilterSheet()

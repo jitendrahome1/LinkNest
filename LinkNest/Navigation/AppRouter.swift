@@ -11,6 +11,20 @@ import Observation
 final class AppRouter {
     var tab: AppTab = .home
     var sheet: SheetRoute?
+    /// Route to push once the active sheet finishes dismissing — pushing
+    /// mid-dismissal can be dropped by NavigationStack.
+    var pendingRoute: AppRoute?
+
+    func dismissSheetThenPush(_ route: AppRoute) {
+        pendingRoute = route
+        sheet = nil
+    }
+
+    func consumePendingRoute() {
+        guard let route = pendingRoute else { return }
+        pendingRoute = nil
+        push(route)
+    }
 
     var homePath: [AppRoute] = []
     var savedPath: [AppRoute] = []
