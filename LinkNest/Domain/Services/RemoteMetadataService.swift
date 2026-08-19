@@ -106,13 +106,13 @@ struct RemoteMetadataService: MetadataService {
         let ogType = Self.metaContent(in: html, key: "og:type") ?? ""
         let contentType: ContentType = ogType.contains("video") ? .video : Self.defaultType(for: platform)
 
-        return LinkMetadata(title: Self.decodeEntities(ogTitle ?? pageTitle ?? url.host ?? "Saved Link"),
-                            creatorName: Self.decodeEntities(siteName ?? url.host ?? platform.displayName),
+        return LinkMetadata(title: (ogTitle ?? pageTitle ?? url.host ?? "Saved Link").decodingHTMLEntities,
+                            creatorName: (siteName ?? url.host ?? platform.displayName).decodingHTMLEntities,
                             platform: platform,
                             contentType: contentType,
                             duration: nil,
                             thumbnailHue: Self.stableHue(for: url),
-                            thumbnailURL: image)
+                            thumbnailURL: image?.decodingHTMLEntities)
     }
 
     private static func defaultType(for platform: ContentPlatform) -> ContentType {
@@ -145,16 +145,6 @@ struct RemoteMetadataService: MetadataService {
         guard let start = fragment.firstIndex(of: ">"), let end = fragment.lastIndex(of: "<") else { return nil }
         let text = fragment[fragment.index(after: start)..<end].trimmingCharacters(in: .whitespacesAndNewlines)
         return text.isEmpty ? nil : text
-    }
-
-    private static func decodeEntities(_ text: String) -> String {
-        text.replacingOccurrences(of: "&amp;", with: "&")
-            .replacingOccurrences(of: "&quot;", with: "\"")
-            .replacingOccurrences(of: "&#39;", with: "'")
-            .replacingOccurrences(of: "&#x27;", with: "'")
-            .replacingOccurrences(of: "&lt;", with: "<")
-            .replacingOccurrences(of: "&gt;", with: ">")
-            .replacingOccurrences(of: "&nbsp;", with: " ")
     }
 
     /// Deterministic hue per URL (djb2) so the gradient fallback is stable, not random.

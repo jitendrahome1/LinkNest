@@ -65,6 +65,7 @@ final class AppContainer {
         fetchMetadata = FetchContentMetadataUseCase(metadata: metadataService)
 
         MockSeeder.seedIfNeeded(context: context)
+        HTMLEntityRepair.run(content: contentRepository)
     }
 
     /// In-memory container for previews and tests.
