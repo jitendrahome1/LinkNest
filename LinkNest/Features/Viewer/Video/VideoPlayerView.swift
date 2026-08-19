@@ -56,8 +56,12 @@ private struct VideoPlayerContent: View {
     @State private var isFullscreen = false
     @State private var showSpeedSheet = false
     @State private var pipController: AVPictureInPictureController?
+    @State private var webLoadState: WebPlayerView.LoadState = .loading
 
     private var item: ContentItem { vm.item }
+    /// The native player is a small contained card; the web fallback needs
+    /// real room since the user is interacting with the actual platform page.
+    private var videoBoxHeight: CGFloat { vm.phase == .unsupportedSource ? 460 : 230 }
 
     var body: some View {
         ScrollView {
@@ -68,7 +72,7 @@ private struct VideoPlayerContent: View {
                                      onMore: { router.sheet = .itemMenu(item.id) })
                     .padding(.top, 6)
 
-                videoBox(height: 230)
+                videoBox(height: videoBoxHeight)
                     .padding(.top, 10)
                     .padding(.horizontal, LNSpacing.gutter)
 
@@ -165,12 +169,7 @@ private struct VideoPlayerContent: View {
                 LinkNestViewerLoadingView(message: String(localized: "player.loading", defaultValue: "Loading video…"),
                                           onDarkChrome: true)
             case .unsupportedSource:
-                LinkNestViewerErrorView(systemImage: "play.slash",
-                                        title: String(localized: "player.unsupportedTitle", defaultValue: "Can't play this here"),
-                                        message: String(localized: "player.unsupportedBody", defaultValue: "This link opens a page, not a direct video file, so LinkNest can't stream it inline."),
-                                        secondaryTitle: String(localized: "detail.openOriginal", defaultValue: "Open Original"),
-                                        onSecondary: openOriginal,
-                                        onDarkChrome: true)
+                unsupportedSourceContent
             case .failed(let message):
                 LinkNestViewerErrorView(title: String(localized: "player.errorTitle", defaultValue: "Playback failed"),
                                         message: message,
@@ -202,6 +201,57 @@ private struct VideoPlayerContent: View {
         .clipShape(RoundedRectangle(cornerRadius: LNRadius.hero, style: .continuous))
         .contentShape(Rectangle())
         .animation(.easeOut(duration: 0.2), value: showTransport)
+    }
+
+    /// YouTube/Instagram/Facebook/X page URLs don't expose a direct media
+    /// file, so AVPlayer has nothing to stream — but the platform's own web
+    /// player can still run inline via WKWebView, same as opening the link
+    /// in Safari but without leaving the app.
+    @ViewBuilder
+    private var unsupportedSourceContent: some View {
+        if let url = URL(string: item.url) {
+            WebPlayerView(url: url) { state in webLoadState = state }
+                .clipShape(RoundedRectangle(cornerRadius: LNRadius.hero, style: .continuous))
+
+            if case .loading = webLoadState {
+                LinkNestViewerLoadingView(message: String(localized: "player.loadingPage", defaultValue: "Loading…"),
+                                          onDarkChrome: true)
+            }
+            if case .failed(let message) = webLoadState {
+                LinkNestViewerErrorView(systemImage: "play.slash",
+                                        title: String(localized: "player.unsupportedTitle", defaultValue: "Can't play this here"),
+                                        message: message,
+                                        secondaryTitle: String(localized: "detail.openOriginal", defaultValue: "Open Original"),
+                                        onSecondary: openOriginal,
+                                        onDarkChrome: true)
+            }
+
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: openOriginal) {
+                        HStack(spacing: 5) {
+                            Text(String(localized: "detail.openOriginal", defaultValue: "Open Original"))
+                            Image(systemName: "arrow.up.right")
+                        }
+                        .font(.system(size: 11.5, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .frame(height: 28)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .environment(\.colorScheme, .dark)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(8)
+                }
+                Spacer()
+            }
+        } else {
+            LinkNestViewerErrorView(systemImage: "play.slash",
+                                    title: String(localized: "player.unsupportedTitle", defaultValue: "Can't play this here"),
+                                    message: String(localized: "player.invalidURL", defaultValue: "This link isn't a valid video URL."),
+                                    onDarkChrome: true)
+        }
     }
 
     private var resumePrompt: some View {
