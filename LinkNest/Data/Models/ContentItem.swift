@@ -164,6 +164,9 @@ final class ContentItem {
 extension ContentItem {
     /// "2h ago" style label matching the prototype.
     var savedAgo: String {
+        guard Date.now.timeIntervalSince(createdAt) >= 60 else {
+            return String(localized: "detail.justNow", defaultValue: "Just now")
+        }
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
         return formatter.localizedString(for: createdAt, relativeTo: .now)

@@ -19,7 +19,10 @@ struct SavedView: View {
     @State private var vm: SavedViewModel?
 
     var body: some View {
-        Group {
+        // ZStack keeps real content on screen while vm is nil — .task never
+        // fires on EmptyView, so a bare `if let` would stay blank forever.
+        ZStack {
+            LNColor.background.ignoresSafeArea()
             if let vm {
                 SavedContent(vm: vm, allItems: allItems)
             }
