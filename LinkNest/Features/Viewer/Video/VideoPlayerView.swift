@@ -59,9 +59,13 @@ private struct VideoPlayerContent: View {
     @State private var webLoadState: WebPlayerView.LoadState = .loading
 
     private var item: ContentItem { vm.item }
-    /// The native player is a small contained card; the web fallback needs
-    /// real room since the user is interacting with the actual platform page.
-    private var videoBoxHeight: CGFloat { vm.phase == .unsupportedSource ? 460 : 230 }
+    /// The native player and the "can't play, here's why" card are a small
+    /// contained box; only grow it once the web fallback has confirmed real,
+    /// interactive content — otherwise it stays the normal compact size.
+    private var videoBoxHeight: CGFloat {
+        guard vm.phase == .unsupportedSource, webLoadState == .loaded else { return 230 }
+        return 460
+    }
 
     var body: some View {
         ScrollView {
@@ -204,47 +208,62 @@ private struct VideoPlayerContent: View {
     }
 
     /// YouTube/Instagram/Facebook/X page URLs don't expose a direct media
-    /// file, so AVPlayer has nothing to stream — but the platform's own web
-    /// player can still run inline via WKWebView, same as opening the link
-    /// in Safari but without leaving the app.
+    /// file, so AVPlayer has nothing to stream — but many platforms' own web
+    /// player still runs fine inline via WKWebView. A single instance stays
+    /// mounted throughout (so switching UI states never reloads the page),
+    /// hidden until WebPlayerView confirms it actually rendered something;
+    /// platforms that block embedding (Facebook/Instagram) fall back to the
+    /// same clean "Open Original" card as any other unsupported source,
+    /// rather than exposing their blank, broken-looking page.
     @ViewBuilder
     private var unsupportedSourceContent: some View {
         if let url = URL(string: item.url) {
-            WebPlayerView(url: url) { state in webLoadState = state }
-                .clipShape(RoundedRectangle(cornerRadius: LNRadius.hero, style: .continuous))
+            ZStack {
+                WebPlayerView(url: url) { state in webLoadState = state }
+                    .clipShape(RoundedRectangle(cornerRadius: LNRadius.hero, style: .continuous))
+                    .opacity(webLoadState == .loaded ? 1 : 0)
+                    .allowsHitTesting(webLoadState == .loaded)
 
-            if case .loading = webLoadState {
-                LinkNestViewerLoadingView(message: String(localized: "player.loadingPage", defaultValue: "Loading…"),
-                                          onDarkChrome: true)
-            }
-            if case .failed(let message) = webLoadState {
-                LinkNestViewerErrorView(systemImage: "play.slash",
-                                        title: String(localized: "player.unsupportedTitle", defaultValue: "Can't play this here"),
-                                        message: message,
-                                        secondaryTitle: String(localized: "detail.openOriginal", defaultValue: "Open Original"),
-                                        onSecondary: openOriginal,
-                                        onDarkChrome: true)
-            }
-
-            VStack {
-                HStack {
-                    Spacer()
-                    Button(action: openOriginal) {
-                        HStack(spacing: 5) {
-                            Text(String(localized: "detail.openOriginal", defaultValue: "Open Original"))
-                            Image(systemName: "arrow.up.right")
+                switch webLoadState {
+                case .loading:
+                    LinkNestViewerLoadingView(message: String(localized: "player.loadingPage", defaultValue: "Loading…"),
+                                              onDarkChrome: true)
+                case .loaded:
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Button(action: openOriginal) {
+                                HStack(spacing: 5) {
+                                    Text(String(localized: "detail.openOriginal", defaultValue: "Open Original"))
+                                    Image(systemName: "arrow.up.right")
+                                }
+                                .font(.system(size: 11.5, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 10)
+                                .frame(height: 28)
+                                .background(.ultraThinMaterial, in: Capsule())
+                                .environment(\.colorScheme, .dark)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(8)
                         }
-                        .font(.system(size: 11.5, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 10)
-                        .frame(height: 28)
-                        .background(.ultraThinMaterial, in: Capsule())
-                        .environment(\.colorScheme, .dark)
+                        Spacer()
                     }
-                    .buttonStyle(.plain)
-                    .padding(8)
+                case .blocked:
+                    LinkNestViewerErrorView(systemImage: "play.slash",
+                                            title: String(localized: "player.unsupportedTitle", defaultValue: "Can't play this here"),
+                                            message: String(localized: "player.unsupportedBody", defaultValue: "This link opens a page, not a direct video file, so LinkNest can't stream it inline."),
+                                            secondaryTitle: String(localized: "detail.openOriginal", defaultValue: "Open Original"),
+                                            onSecondary: openOriginal,
+                                            onDarkChrome: true)
+                case .failed(let message):
+                    LinkNestViewerErrorView(systemImage: "play.slash",
+                                            title: String(localized: "player.unsupportedTitle", defaultValue: "Can't play this here"),
+                                            message: message,
+                                            secondaryTitle: String(localized: "detail.openOriginal", defaultValue: "Open Original"),
+                                            onSecondary: openOriginal,
+                                            onDarkChrome: true)
                 }
-                Spacer()
             }
         } else {
             LinkNestViewerErrorView(systemImage: "play.slash",
