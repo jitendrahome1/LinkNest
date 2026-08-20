@@ -17,8 +17,16 @@ final class VideoPlayerViewModel {
         case ready
         /// The saved URL isn't a direct media file (e.g. a YouTube page URL) —
         /// AVPlayer has nothing it can stream. Not a bug, just an unsupported source.
-        case unsupportedSource
+        case unsupportedSource(UnsupportedKind)
         case failed(String)
+    }
+
+    /// What VideoPlayerView should try instead of AVPlayer. Deliberately
+    /// narrower than VideoSource — the view only ever needs "is this
+    /// YouTube" vs. "here's a URL to try embedding in WebPlayerView".
+    enum UnsupportedKind: Equatable {
+        case youTube(videoID: String)
+        case embedPage(URL)
     }
 
     private(set) var phase: Phase = .loading
@@ -40,6 +48,7 @@ final class VideoPlayerViewModel {
     let item: ContentItem
 
     private let contentRepository: any ContentRepository
+    private let sourceResolver: any VideoSourceResolver
     private var timeObserver: Any?
     private var loadTask: Task<Void, Never>?
     private var failureObserver: NSObjectProtocol?
@@ -49,16 +58,16 @@ final class VideoPlayerViewModel {
     private var didMarkCompleted = false
 
     static let skipInterval: Double = 10
-    private static let streamableExtensions: Set<String> = ["mp4", "mov", "m4v", "webm", "m3u8"]
 
     var progress: Double {
         guard duration > 0 else { return 0 }
         return min(1, max(0, currentTime / duration))
     }
 
-    init(item: ContentItem, contentRepository: any ContentRepository) {
+    init(item: ContentItem, contentRepository: any ContentRepository, sourceResolver: any VideoSourceResolver) {
         self.item = item
         self.contentRepository = contentRepository
+        self.sourceResolver = sourceResolver
         duration = item.playbackDurationSeconds
         currentTime = item.playbackPositionSeconds
         try? AVAudioSession.sharedInstance().setCategory(.playback)
@@ -66,56 +75,63 @@ final class VideoPlayerViewModel {
 
     func load() {
         phase = .loading
-        guard let url = URL(string: item.url), url.scheme?.hasPrefix("http") == true else {
-            phase = .failed(String(localized: "player.invalidURL", defaultValue: "This link isn't a valid video URL."))
-            return
-        }
-        guard isLikelyDirectlyPlayable(url) else {
-            // Constructing WKWebView is heavy; doing it the instant this view
-            // pushes competes with the navigation transition's own animation
-            // for the main thread and shows up as a stutter. Give the push a
-            // beat to finish — the loading spinner covers the wait either way.
-            loadTask?.cancel()
-            loadTask = Task { [weak self] in
-                try? await Task.sleep(for: .milliseconds(350))
-                guard !Task.isCancelled, let self else { return }
-                self.phase = .unsupportedSource
-            }
-            return
-        }
-
         loadTask?.cancel()
         loadTask = Task { [weak self] in
             guard let self else { return }
-            let asset = AVURLAsset(url: url)
-            do {
-                let (isPlayable, durationTime) = try await asset.load(.isPlayable, .duration)
-                guard !Task.isCancelled else { return }
-                guard isPlayable else {
-                    self.phase = .failed(String(localized: "player.loadFailed", defaultValue: "This video couldn't be loaded."))
-                    return
-                }
-                let playerItem = AVPlayerItem(asset: asset)
-                self.player.replaceCurrentItem(with: playerItem)
-                self.player.isMuted = self.isMuted
-                self.attachTimeObserver()
-                self.watchBuffering(of: playerItem)
-                self.watchFailures(of: playerItem)
-                self.watchPlaybackEnd(of: playerItem)
-
-                let seconds = durationTime.seconds
-                self.duration = seconds.isFinite && seconds > 0 ? seconds : self.item.playbackDurationSeconds
-                self.item.playbackDurationSeconds = self.duration
-                self.phase = .ready
-                if self.item.hasResumablePlayback {
-                    self.showResumePrompt = true
-                } else {
-                    self.play()
-                }
-            } catch {
-                guard !Task.isCancelled else { return }
-                self.phase = .failed(error.localizedDescription)
+            let source = await self.sourceResolver.resolve(self.item.url)
+            guard !Task.isCancelled else { return }
+            switch source {
+            case .direct(let url), .hls(let url):
+                await self.loadPlayableAsset(url)
+            case .youTube(let videoID):
+                await self.enterUnsupported(.youTube(videoID: videoID))
+            case .embeddable(let url), .webPage(let url):
+                await self.enterUnsupported(.embedPage(url))
+            case .unsupported(let reason):
+                self.phase = .failed(reason)
             }
+        }
+    }
+
+    /// Constructing WKWebView is heavy; doing it the instant this view
+    /// pushes competes with the navigation transition's own animation for
+    /// the main thread and shows up as a stutter. Give the push a beat to
+    /// finish — the loading spinner covers the wait either way.
+    private func enterUnsupported(_ kind: UnsupportedKind) async {
+        try? await Task.sleep(for: .milliseconds(350))
+        guard !Task.isCancelled else { return }
+        self.phase = .unsupportedSource(kind)
+    }
+
+    private func loadPlayableAsset(_ url: URL) async {
+        let asset = AVURLAsset(url: url)
+        do {
+            let (isPlayable, durationTime) = try await asset.load(.isPlayable, .duration)
+            guard !Task.isCancelled else { return }
+            guard isPlayable else {
+                self.phase = .failed(String(localized: "player.loadFailed", defaultValue: "This video couldn't be loaded."))
+                return
+            }
+            let playerItem = AVPlayerItem(asset: asset)
+            self.player.replaceCurrentItem(with: playerItem)
+            self.player.isMuted = self.isMuted
+            self.attachTimeObserver()
+            self.watchBuffering(of: playerItem)
+            self.watchFailures(of: playerItem)
+            self.watchPlaybackEnd(of: playerItem)
+
+            let seconds = durationTime.seconds
+            self.duration = seconds.isFinite && seconds > 0 ? seconds : self.item.playbackDurationSeconds
+            self.item.playbackDurationSeconds = self.duration
+            self.phase = .ready
+            if self.item.hasResumablePlayback {
+                self.showResumePrompt = true
+            } else {
+                self.play()
+            }
+        } catch {
+            guard !Task.isCancelled else { return }
+            self.phase = .failed(error.localizedDescription)
         }
     }
 
@@ -183,17 +199,6 @@ final class VideoPlayerViewModel {
         showResumePrompt = false
         seek(to: 0, precise: true)
         play()
-    }
-
-    // MARK: - Source detection
-
-    private func isLikelyDirectlyPlayable(_ url: URL) -> Bool {
-        if Self.streamableExtensions.contains(url.pathExtension.lowercased()) { return true }
-        if url.absoluteString.lowercased().contains(".m3u8") { return true }
-        switch item.platform {
-        case .website, .other: return true
-        default: return false
-        }
     }
 
     // MARK: - Observation

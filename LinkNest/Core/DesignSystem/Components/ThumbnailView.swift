@@ -47,10 +47,20 @@ struct ThumbnailView: View {
     @ViewBuilder
     private var gradient: some View {
         if let thumbnailURL, let url = URL(string: thumbnailURL) {
-            AsyncImage(url: url) { image in
-                image.resizable().aspectRatio(contentMode: .fill)
-            } placeholder: {
-                gradientFill
+            // AsyncImage doesn't reliably adopt an ancestor's proposed size
+            // for a loaded image (it can size to the image's own pixel
+            // dimensions instead) — pinning it to the GeometryReader's
+            // resolved size is what actually forces it to match the
+            // surrounding fixed-height frame instead of pushing sibling
+            // views around.
+            GeometryReader { geo in
+                AsyncImage(url: url) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .clipped()
+                } placeholder: {
+                    gradientFill
+                }
             }
         } else {
             gradientFill

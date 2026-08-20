@@ -22,6 +22,7 @@ final class AppContainer {
 
     // Services
     let metadataService: any MetadataService
+    let videoSourceResolver: any VideoSourceResolver
     let authService: any AuthenticationService
     let searchService: SearchService
     let syncService: any SyncService
@@ -52,6 +53,7 @@ final class AppContainer {
         tagRepository = SwiftDataTagRepository(context: context, remote: SupabaseTagDataSource())
 
         metadataService = RemoteMetadataService(fallback: MockMetadataService())
+        videoSourceResolver = DefaultVideoSourceResolver()
         authService = inMemory ? MockAuthenticationService(keychain: KeychainManager()) : SupabaseAuthenticationService()
         searchService = SearchService(content: contentRepository,
                                       collections: collectionRepository,

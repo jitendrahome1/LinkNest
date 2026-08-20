@@ -34,7 +34,7 @@ struct VideoPlayerView: View {
                 itemMissing = true
                 return
             }
-            let model = VideoPlayerViewModel(item: item, contentRepository: container.contentRepository)
+            let model = VideoPlayerViewModel(item: item, contentRepository: container.contentRepository, sourceResolver: container.videoSourceResolver)
             vm = model
             model.load()
         }
@@ -57,13 +57,24 @@ private struct VideoPlayerContent: View {
     @State private var showSpeedSheet = false
     @State private var pipController: AVPictureInPictureController?
     @State private var webLoadState: WebPlayerView.LoadState = .loading
+    /// Drives LinkNestPlayerControls/LinkNestPlayerBottomBar for a YouTube
+    /// embed exactly like `vm` drives them for AVPlayer, so the visible
+    /// transport UI is always LinkNest's own design, never YouTube's.
+    @State private var ytController = YouTubeEmbedController()
+    private var isYouTubeCase: Bool {
+        if case .unsupportedSource(.youTube) = vm.phase { return true }
+        return false
+    }
+    private var speedBinding: Binding<Double> {
+        isYouTubeCase ? $ytController.speed : $vm.speed
+    }
 
     private var item: ContentItem { vm.item }
     /// The native player and the "can't play, here's why" card are a small
     /// contained box; only grow it once the web fallback has confirmed real,
     /// interactive content — otherwise it stays the normal compact size.
     private var videoBoxHeight: CGFloat {
-        guard vm.phase == .unsupportedSource, webLoadState == .loaded else { return 230 }
+        guard case .unsupportedSource = vm.phase, webLoadState == .loaded else { return 230 }
         return 460
     }
 
@@ -108,6 +119,23 @@ private struct VideoPlayerContent: View {
                                             onToggleFullscreen: { isFullscreen = true })
                         .padding(.horizontal, LNSpacing.gutter)
                         .padding(.top, 14)
+                } else if isYouTubeCase, webLoadState == .loaded {
+                    LinkNestPlayerBottomBar(style: .flat,
+                                            progress: ytController.progress,
+                                            positionLabel: ytController.currentTime.mmss,
+                                            durationLabel: ytController.duration.mmss,
+                                            speedLabel: LinkNestPlaybackSpeedSheet.label(for: ytController.speed),
+                                            isMuted: ytController.isMuted,
+                                            isPiPAvailable: false,
+                                            isFullscreen: false,
+                                            onScrub: { ytController.scrub(toFraction: $0) },
+                                            onScrubEnd: ytController.commitScrub,
+                                            onSpeed: { showSpeedSheet = true },
+                                            onToggleMute: { ytController.isMuted.toggle() },
+                                            onPiP: {},
+                                            onToggleFullscreen: { isFullscreen = true })
+                        .padding(.horizontal, LNSpacing.gutter)
+                        .padding(.top, 14)
                 }
 
                 VStack(alignment: .leading, spacing: 0) {
@@ -147,21 +175,40 @@ private struct VideoPlayerContent: View {
         // the fullscreen cover owns the experience.
         .accessibilityHidden(isFullscreen)
         .sheet(isPresented: $showSpeedSheet) {
-            LinkNestPlaybackSpeedSheet(selected: $vm.speed)
+            LinkNestPlaybackSpeedSheet(selected: speedBinding)
         }
         .fullScreenCover(isPresented: $isFullscreen) {
-            FullscreenPlayerOverlay(vm: vm, pipController: $pipController,
-                                    showSpeedSheet: $showSpeedSheet,
-                                    onExit: { isFullscreen = false })
+            if isYouTubeCase {
+                YouTubeFullscreenOverlay(controller: ytController, videoID: youTubeVideoID,
+                                         showSpeedSheet: $showSpeedSheet,
+                                         onExit: { isFullscreen = false })
+            } else {
+                FullscreenPlayerOverlay(vm: vm, pipController: $pipController,
+                                        showSpeedSheet: $showSpeedSheet,
+                                        onExit: { isFullscreen = false })
+            }
         }
         .onChange(of: vm.isPlaying) { _, playing in
             if playing { scheduleAutoHide() } else { hideTask?.cancel() }
+        }
+        .onChange(of: ytController.isPlaying) { _, playing in
+            if playing { scheduleAutoHide() } else { hideTask?.cancel() }
+        }
+        .onChange(of: webLoadState) { _, state in
+            guard isYouTubeCase, state == .loaded else { return }
+            ytController.play()
         }
         .onDisappear {
             hideTask?.cancel()
             vm.pause()
             vm.detachObservers()
+            ytController.pause()
         }
+    }
+
+    private var youTubeVideoID: String {
+        if case .unsupportedSource(.youTube(let videoID)) = vm.phase { return videoID }
+        return ""
     }
 
     // MARK: - Inline video card
@@ -183,8 +230,8 @@ private struct VideoPlayerContent: View {
             case .loading:
                 LinkNestViewerLoadingView(message: String(localized: "player.loading", defaultValue: "Loading video…"),
                                           onDarkChrome: true)
-            case .unsupportedSource:
-                unsupportedSourceContent
+            case .unsupportedSource(let kind):
+                unsupportedSourceContent(kind)
             case .failed(let message):
                 LinkNestViewerErrorView(title: String(localized: "player.errorTitle", defaultValue: "Playback failed"),
                                         message: message,
@@ -235,66 +282,112 @@ private struct VideoPlayerContent: View {
     /// confusing on-brand error screen instead of playing. Going straight
     /// to "Open Original" is the honest, predictable experience.
     @ViewBuilder
-    private var unsupportedSourceContent: some View {
-        if item.platform == .youtube {
+    private func unsupportedSourceContent(_ kind: VideoPlayerViewModel.UnsupportedKind) -> some View {
+        switch kind {
+        case .youTube(let videoID):
+            embeddedWebPlayer(.youTube(videoID: videoID),
+                              fallbackTitle: String(localized: "player.youtubeTitle", defaultValue: "Watch on YouTube"),
+                              fallbackMessage: String(localized: "player.youtubeBody", defaultValue: "YouTube videos play in the YouTube app or Safari for the best experience."),
+                              fallbackIsPrimaryAction: true,
+                              isYouTube: true)
+        case .embedPage(let url):
+            embeddedWebPlayer(.page(url),
+                              fallbackTitle: String(localized: "player.unsupportedTitle", defaultValue: "Can't play this here"),
+                              fallbackMessage: String(localized: "player.unsupportedBody", defaultValue: "This link opens a page, not a direct video file, so LinkNest can't stream it inline."),
+                              fallbackIsPrimaryAction: false,
+                              isYouTube: false)
+        }
+    }
+
+    /// Concrete (non-opaque) return type keeps type-checking of the
+    /// @ViewBuilder call site below fast — inlining this ternary-laden
+    /// construction directly into the ZStack timed out the compiler.
+    private func webPlayer(_ source: WebPlayerView.Source, isYouTube: Bool) -> WebPlayerView {
+        let controller: YouTubeEmbedController? = isYouTube ? ytController : nil
+        let tapHandler: (() -> Void)? = isYouTube ? { self.toggleTransport() } : nil
+        return WebPlayerView(source: source,
+                             youTubeController: controller,
+                             onTap: tapHandler,
+                             onLoadStateChange: { webLoadState = $0 })
+    }
+
+    /// Shared embed-and-verify shell for both WebPlayerView sources: hidden
+    /// until loaded, small floating Open Original pill once it renders, and
+    /// a fallback error card (its copy varying per source) if it never does.
+    /// `fallbackIsPrimaryAction` preserves YouTube's original always-shown
+    /// accent-button treatment now that the same card only appears when the
+    /// embed itself fails, rather than downgrading it to the dimmer
+    /// secondary-button style the generic web-page fallback already used.
+    /// For YouTube specifically, once loaded, LinkNest's own center
+    /// transport (LinkNestPlayerControls) is layered on top — the embed's
+    /// native controls are hidden (see WebPlayerView), so this is the only
+    /// visible transport, matching the AVPlayer `.ready` treatment instead
+    /// of exposing YouTube's own small-text web-player chrome.
+    @ViewBuilder
+    private func embeddedWebPlayer(_ source: WebPlayerView.Source, fallbackTitle: String, fallbackMessage: String, fallbackIsPrimaryAction: Bool, isYouTube: Bool) -> some View {
+        ZStack {
+            webPlayer(source, isYouTube: isYouTube)
+                .clipShape(RoundedRectangle(cornerRadius: LNRadius.hero, style: .continuous))
+                .opacity(webLoadState == .loaded ? 1 : 0)
+                .allowsHitTesting(webLoadState == .loaded)
+
+            if isYouTube, webLoadState == .loaded {
+                LinkNestPlayerControls(isPlaying: ytController.isPlaying,
+                                       onTogglePlay: { ytController.togglePlay(); scheduleAutoHide() },
+                                       onSkipBack: { ytController.skipBack(); scheduleAutoHide() },
+                                       onSkipForward: { ytController.skipForward(); scheduleAutoHide() })
+                    .opacity(showTransport ? 1 : 0)
+                    .allowsHitTesting(showTransport)
+            }
+
+            switch webLoadState {
+            case .loading:
+                LinkNestViewerLoadingView(message: String(localized: "player.loadingPage", defaultValue: "Loading…"),
+                                          onDarkChrome: true)
+            case .loaded:
+                VStack {
+                    HStack {
+                        Spacer()
+                        Button(action: openOriginal) {
+                            HStack(spacing: 5) {
+                                Text(String(localized: "detail.openOriginal", defaultValue: "Open Original"))
+                                Image(systemName: "arrow.up.right")
+                            }
+                            .font(.system(size: 11.5, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 10)
+                            .frame(height: 28)
+                            .background(.ultraThinMaterial, in: Capsule())
+                            .environment(\.colorScheme, .dark)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(8)
+                    }
+                    Spacer()
+                }
+            case .blocked:
+                fallbackCard(fallbackTitle, fallbackMessage, isPrimary: fallbackIsPrimaryAction)
+            case .failed(let message):
+                fallbackCard(fallbackTitle, message, isPrimary: fallbackIsPrimaryAction)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func fallbackCard(_ title: String, _ message: String, isPrimary: Bool) -> some View {
+        if isPrimary {
             LinkNestViewerErrorView(systemImage: "play.rectangle",
-                                    title: String(localized: "player.youtubeTitle", defaultValue: "Watch on YouTube"),
-                                    message: String(localized: "player.youtubeBody", defaultValue: "YouTube videos play in the YouTube app or Safari for the best experience."),
+                                    title: title,
+                                    message: message,
                                     retryTitle: String(localized: "detail.openOriginal", defaultValue: "Open Original"),
                                     onRetry: openOriginal,
                                     onDarkChrome: true)
-        } else if let url = URL(string: item.url) {
-            ZStack {
-                WebPlayerView(url: url) { state in webLoadState = state }
-                    .clipShape(RoundedRectangle(cornerRadius: LNRadius.hero, style: .continuous))
-                    .opacity(webLoadState == .loaded ? 1 : 0)
-                    .allowsHitTesting(webLoadState == .loaded)
-
-                switch webLoadState {
-                case .loading:
-                    LinkNestViewerLoadingView(message: String(localized: "player.loadingPage", defaultValue: "Loading…"),
-                                              onDarkChrome: true)
-                case .loaded:
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Button(action: openOriginal) {
-                                HStack(spacing: 5) {
-                                    Text(String(localized: "detail.openOriginal", defaultValue: "Open Original"))
-                                    Image(systemName: "arrow.up.right")
-                                }
-                                .font(.system(size: 11.5, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 10)
-                                .frame(height: 28)
-                                .background(.ultraThinMaterial, in: Capsule())
-                                .environment(\.colorScheme, .dark)
-                            }
-                            .buttonStyle(.plain)
-                            .padding(8)
-                        }
-                        Spacer()
-                    }
-                case .blocked:
-                    LinkNestViewerErrorView(systemImage: "play.slash",
-                                            title: String(localized: "player.unsupportedTitle", defaultValue: "Can't play this here"),
-                                            message: String(localized: "player.unsupportedBody", defaultValue: "This link opens a page, not a direct video file, so LinkNest can't stream it inline."),
-                                            secondaryTitle: String(localized: "detail.openOriginal", defaultValue: "Open Original"),
-                                            onSecondary: openOriginal,
-                                            onDarkChrome: true)
-                case .failed(let message):
-                    LinkNestViewerErrorView(systemImage: "play.slash",
-                                            title: String(localized: "player.unsupportedTitle", defaultValue: "Can't play this here"),
-                                            message: message,
-                                            secondaryTitle: String(localized: "detail.openOriginal", defaultValue: "Open Original"),
-                                            onSecondary: openOriginal,
-                                            onDarkChrome: true)
-                }
-            }
         } else {
             LinkNestViewerErrorView(systemImage: "play.slash",
-                                    title: String(localized: "player.unsupportedTitle", defaultValue: "Can't play this here"),
-                                    message: String(localized: "player.invalidURL", defaultValue: "This link isn't a valid video URL."),
+                                    title: title,
+                                    message: message,
+                                    secondaryTitle: String(localized: "detail.openOriginal", defaultValue: "Open Original"),
+                                    onSecondary: openOriginal,
                                     onDarkChrome: true)
         }
     }
@@ -413,7 +506,8 @@ private struct VideoPlayerContent: View {
 
     private func toggleTransport() {
         withAnimation(.easeOut(duration: 0.2)) { showTransport.toggle() }
-        if showTransport, vm.isPlaying { scheduleAutoHide() } else { hideTask?.cancel() }
+        let isPlaying = isYouTubeCase ? ytController.isPlaying : vm.isPlaying
+        if showTransport, isPlaying { scheduleAutoHide() } else { hideTask?.cancel() }
     }
 
     private func scheduleAutoHide() {
@@ -503,6 +597,100 @@ private struct FullscreenPlayerOverlay: View {
     private func toggleControls() {
         withAnimation(.easeOut(duration: 0.2)) { showControls.toggle() }
         if showControls, vm.isPlaying { scheduleAutoHide() } else { hideTask?.cancel() }
+    }
+
+    private func scheduleAutoHide() {
+        hideTask?.cancel()
+        hideTask = Task {
+            try? await Task.sleep(for: .seconds(3.5))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.25)) { showControls = false }
+        }
+    }
+}
+
+/// Fullscreen counterpart to the inline YouTube embed. Unlike AVPlayer's
+/// FullscreenPlayerOverlay, this can't share the exact same live WKWebView
+/// instance across the inline↔fullscreen transition (SwiftUI tears down
+/// and recreates UIViewRepresentable content when it moves to a different
+/// place in the view tree), so it briefly reloads the embed and relies on
+/// YouTubeEmbedController.resumeAfterReady() (fired from the new player's
+/// onReady bridge message) to reapply position/mute/speed/play-state —
+/// same controller instance, so nothing else about the transport resets.
+private struct YouTubeFullscreenOverlay: View {
+    @Bindable var controller: YouTubeEmbedController
+    var videoID: String
+    @Binding var showSpeedSheet: Bool
+    var onExit: () -> Void
+
+    @State private var webLoadState: WebPlayerView.LoadState = .loading
+    @State private var showControls = true
+    @State private var hideTask: Task<Void, Never>?
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            WebPlayerView(source: .youTube(videoID: videoID), youTubeController: controller, onTap: toggleControls) { state in webLoadState = state }
+                .ignoresSafeArea()
+                .opacity(webLoadState == .loaded ? 1 : 0)
+                .allowsHitTesting(webLoadState == .loaded)
+
+            if webLoadState == .loading {
+                LinkNestViewerLoadingView(message: String(localized: "player.loadingPage", defaultValue: "Loading…"), onDarkChrome: true)
+            }
+
+            LinearGradient(colors: [.black.opacity(0.5), .clear, .black.opacity(0.6)],
+                          startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+                .opacity(showControls ? 1 : 0)
+
+            VStack {
+                LinkNestViewerHeader(usesDarkChrome: true, onBack: onExit)
+                    .padding(.top, 8)
+                    .opacity(showControls ? 1 : 0)
+                    .allowsHitTesting(showControls)
+                Spacer()
+                if webLoadState == .loaded {
+                    LinkNestPlayerControls(isPlaying: controller.isPlaying,
+                                           onTogglePlay: { controller.togglePlay(); scheduleAutoHide() },
+                                           onSkipBack: { controller.skipBack(); scheduleAutoHide() },
+                                           onSkipForward: { controller.skipForward(); scheduleAutoHide() })
+                        .opacity(showControls ? 1 : 0)
+                        .allowsHitTesting(showControls)
+                }
+                Spacer()
+                LinkNestPlayerBottomBar(style: .overlay,
+                                        progress: controller.progress,
+                                        positionLabel: controller.currentTime.mmss,
+                                        durationLabel: controller.duration.mmss,
+                                        speedLabel: LinkNestPlaybackSpeedSheet.label(for: controller.speed),
+                                        isMuted: controller.isMuted,
+                                        isPiPAvailable: false,
+                                        isFullscreen: true,
+                                        onScrub: { controller.scrub(toFraction: $0) },
+                                        onScrubEnd: controller.commitScrub,
+                                        onSpeed: { showSpeedSheet = true },
+                                        onToggleMute: { controller.isMuted.toggle() },
+                                        onPiP: {},
+                                        onToggleFullscreen: onExit)
+                    .padding(.horizontal, LNSpacing.gutter)
+                    .allowsHitTesting(showControls)
+                    .padding(.bottom, 14)
+                    .opacity(showControls ? 1 : 0)
+            }
+        }
+        .statusBarHidden()
+        .sheet(isPresented: $showSpeedSheet) {
+            LinkNestPlaybackSpeedSheet(selected: $controller.speed)
+        }
+        .onAppear { scheduleAutoHide() }
+    }
+
+    private func toggleControls() {
+        withAnimation(.easeOut(duration: 0.2)) { showControls.toggle() }
+        if showControls, controller.isPlaying { scheduleAutoHide() } else { hideTask?.cancel() }
     }
 
     private func scheduleAutoHide() {
