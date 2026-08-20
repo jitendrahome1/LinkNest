@@ -71,7 +71,16 @@ final class VideoPlayerViewModel {
             return
         }
         guard isLikelyDirectlyPlayable(url) else {
-            phase = .unsupportedSource
+            // Constructing WKWebView is heavy; doing it the instant this view
+            // pushes competes with the navigation transition's own animation
+            // for the main thread and shows up as a stutter. Give the push a
+            // beat to finish — the loading spinner covers the wait either way.
+            loadTask?.cancel()
+            loadTask = Task { [weak self] in
+                try? await Task.sleep(for: .milliseconds(350))
+                guard !Task.isCancelled, let self else { return }
+                self.phase = .unsupportedSource
+            }
             return
         }
 

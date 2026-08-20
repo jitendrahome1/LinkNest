@@ -20,6 +20,13 @@ struct ThumbnailView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             gradient
+            // Real scraped thumbnails can have dense text baked into the
+            // photo itself; a scrim keeps the badges legible over any image.
+            if thumbnailURL != nil {
+                LinearGradient(colors: [.clear, Color.black.opacity(0.45)],
+                              startPoint: .center, endPoint: .bottom)
+                    .allowsHitTesting(false)
+            }
             HStack {
                 if contentType == .pdf {
                     badge(text: "PDF", background: Color(hex: 0xB3443C))

@@ -70,11 +70,21 @@ private struct DetailContent: View {
                     .foregroundStyle(LNColor.accent)
                     .padding(.top, 8)
 
-                    LNPrimaryButton(title: String(localized: "detail.openOriginal", defaultValue: "Open Original"),
-                                    systemImage: "arrow.up.right") {
-                        if let url = URL(string: item.url) { openURL(url) }
+                    LNPrimaryButton(title: primaryTitle, systemImage: primarySystemImage, action: performPrimaryAction)
+                        .padding(.top, 14)
+
+                    if item.contentType == .video {
+                        Button {
+                            if let url = URL(string: item.url) { openURL(url) }
+                        } label: {
+                            Text(String(localized: "detail.openOriginalArrow", defaultValue: "Open Original ↗"))
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(LNColor.accent)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 10)
                     }
-                    .padding(.top, 14)
 
                     LNSectionLabel(text: String(localized: "detail.notes", defaultValue: "My Notes"))
                         .padding(.top, 22)
@@ -96,6 +106,30 @@ private struct DetailContent: View {
             .padding(.bottom, 44)
         }
         .background(LNColor.background)
+    }
+
+    private var primaryTitle: String {
+        switch item.contentType {
+        case .pdf: String(localized: "detail.readPDF", defaultValue: "Read PDF")
+        case .video: String(localized: "detail.playVideo", defaultValue: "Play Video")
+        default: String(localized: "detail.openOriginal", defaultValue: "Open Original")
+        }
+    }
+
+    private var primarySystemImage: String {
+        switch item.contentType {
+        case .pdf: "book.closed.fill"
+        case .video: "play.fill"
+        default: "arrow.up.right"
+        }
+    }
+
+    private func performPrimaryAction() {
+        switch item.contentType {
+        case .pdf: router.push(.pdfReader(item.id))
+        case .video: router.push(.videoPlayer(item.id))
+        default: if let url = URL(string: item.url) { openURL(url) }
+        }
     }
 
     private var topBar: some View {

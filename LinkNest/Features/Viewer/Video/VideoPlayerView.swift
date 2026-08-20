@@ -67,10 +67,21 @@ private struct VideoPlayerContent: View {
         return 460
     }
 
+    /// "Video · 18:24 · iOS Development" — matches the header's compact
+    /// metadata line in the design.
+    private var headerSubtitle: String {
+        let typePart = item.duration.map { String(localized: "player.videoDuration", defaultValue: "Video · \($0)") }
+            ?? String(localized: "player.videoType", defaultValue: "Video")
+        let collectionPart = item.collection?.name ?? String(localized: "detail.noCollection", defaultValue: "No collection")
+        return "\(typePart) · \(collectionPart)"
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                LinkNestViewerHeader(isFavorite: item.isFavorite,
+                LinkNestViewerHeader(title: item.title,
+                                     subtitle: headerSubtitle,
+                                     isFavorite: item.isFavorite,
                                      onBack: { router.pop() },
                                      onFavorite: toggleCurrentFavorite,
                                      onMore: { router.sheet = .itemMenu(item.id) })
@@ -215,9 +226,24 @@ private struct VideoPlayerContent: View {
     /// platforms that block embedding (Facebook/Instagram) fall back to the
     /// same clean "Open Original" card as any other unsupported source,
     /// rather than exposing their blank, broken-looking page.
+    ///
+    /// YouTube specifically never attempts the inline embed at all: as of
+    /// YouTube's July 2025 embed-verification tightening, WKWebView can't
+    /// reliably pass its check (a documented WebKit limitation, not
+    /// something fixable from app code — see WebKit bug 169846), so the
+    /// embed reliably resolves "loaded" and then shows YouTube's own
+    /// confusing on-brand error screen instead of playing. Going straight
+    /// to "Open Original" is the honest, predictable experience.
     @ViewBuilder
     private var unsupportedSourceContent: some View {
-        if let url = URL(string: item.url) {
+        if item.platform == .youtube {
+            LinkNestViewerErrorView(systemImage: "play.rectangle",
+                                    title: String(localized: "player.youtubeTitle", defaultValue: "Watch on YouTube"),
+                                    message: String(localized: "player.youtubeBody", defaultValue: "YouTube videos play in the YouTube app or Safari for the best experience."),
+                                    retryTitle: String(localized: "detail.openOriginal", defaultValue: "Open Original"),
+                                    onRetry: openOriginal,
+                                    onDarkChrome: true)
+        } else if let url = URL(string: item.url) {
             ZStack {
                 WebPlayerView(url: url) { state in webLoadState = state }
                     .clipShape(RoundedRectangle(cornerRadius: LNRadius.hero, style: .continuous))

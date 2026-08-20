@@ -1,9 +1,12 @@
 //
 //  WebPlayerView.swift
-//  Fallback for sources AVPlayer can't stream (YouTube/Instagram/Facebook/X
-//  page URLs — none of them expose a direct media file). Embeds the real
-//  page with WKWebView so the platform's own player can run inline, the
-//  same approach read-it-later apps use for social video.
+//  Fallback for sources AVPlayer can't stream (Instagram/Facebook/X page
+//  URLs — none of them expose a direct media file). Embeds the real page
+//  with WKWebView so the platform's own player can run inline, the same
+//  approach read-it-later apps use for social video. YouTube doesn't come
+//  through here — VideoPlayerView sends it straight to "Open Original"
+//  instead, since WKWebView can't reliably pass YouTube's embed
+//  verification (see the comment there).
 //
 //  Some platforms (Facebook/Instagram in particular) accept the load and
 //  report success while their anti-embedding JS renders nothing at all —

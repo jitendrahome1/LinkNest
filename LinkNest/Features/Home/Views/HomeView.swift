@@ -51,22 +51,24 @@ struct HomeView: View {
                 .padding(.horizontal, LNSpacing.gutter)
                 .padding(.top, 20)
 
-                LNSectionHeader(title: String(localized: "home.recentlySaved", defaultValue: "Recently Saved"),
-                                actionTitle: String(localized: "home.seeAll", defaultValue: "See All")) {
-                    router.switchTab(.saved)
-                }
-                .padding(.top, 24)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(items.prefix(8)) { item in
-                            LNContentCardLarge(item: item, onOpen: { open(item) },
-                                               onToggleFavorite: { toggleFavorite(item) })
-                        }
+                if !items.isEmpty {
+                    LNSectionHeader(title: String(localized: "home.recentlySaved", defaultValue: "Recently Saved"),
+                                    actionTitle: String(localized: "home.seeAll", defaultValue: "See All")) {
+                        router.switchTab(.saved)
                     }
-                    .padding(.horizontal, LNSpacing.gutter)
-                    .padding(.vertical, 4)
+                    .padding(.top, 24)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(items.prefix(8)) { item in
+                                LNContentCardLarge(item: item, onOpen: { open(item) },
+                                                   onToggleFavorite: { toggleFavorite(item) })
+                            }
+                        }
+                        .padding(.horizontal, LNSpacing.gutter)
+                        .padding(.vertical, 4)
+                    }
+                    .padding(.top, 6)
                 }
-                .padding(.top, 6)
 
                 if !watchLaterItems.isEmpty {
                     LNSectionHeader(title: String(localized: "home.continueExploring", defaultValue: "Continue Exploring"),
