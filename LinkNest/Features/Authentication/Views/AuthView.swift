@@ -9,6 +9,7 @@ import SwiftUI
 struct AuthView: View {
     @Environment(AppContainer.self) private var container
     @Environment(AppState.self) private var appState
+    @Environment(AppRouter.self) private var router
     @State private var vm: AuthViewModel?
 
     var body: some View {
@@ -23,10 +24,13 @@ struct AuthView: View {
             guard vm == nil else { return }
             let model = AuthViewModel(auth: container.authService)
             model.onAuthenticated = { session in
+                router.resetToHome()
                 appState.phase = .main
                 appState.showToast(String(localized: "auth.welcome", defaultValue: "Welcome back, ")
                     + session.userName.components(separatedBy: " ").first!)
+                Task { await container.syncService.syncNow() }
             }
+            model.onSignedUp = { container.seedDefaultCollections() }
             model.onToast = { appState.showToast($0) }
             vm = model
         }

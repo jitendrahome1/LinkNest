@@ -24,6 +24,8 @@ final class AuthViewModel {
 
     private let auth: any AuthenticationService
     var onAuthenticated: ((AuthSession) -> Void)?
+    /// Fires only for a brand-new account, after `onAuthenticated` — never on sign-in.
+    var onSignedUp: (() -> Void)?
     var onToast: ((String) -> Void)?
 
     init(auth: any AuthenticationService) {
@@ -66,7 +68,7 @@ final class AuthViewModel {
             confirmError = AuthError.passwordMismatch.errorDescription; hasError = true
         }
         guard !hasError else { return }
-        run { try await self.auth.signUp(name: self.name, email: self.email, password: self.password) }
+        run(isSignUp: true) { try await self.auth.signUp(name: self.name, email: self.email, password: self.password) }
     }
 
     func continueWithApple() { run { try await self.auth.signInWithApple() } }
@@ -90,19 +92,21 @@ final class AuthViewModel {
         }
     }
 
-    private func run(_ operation: @escaping () async throws -> AuthSession) {
+    private func run(isSignUp: Bool = false, _ operation: @escaping () async throws -> AuthSession) {
         isBusy = true
         Task {
             defer { isBusy = false }
             do {
                 let session = try await operation()
                 onAuthenticated?(session)
+                if isSignUp { onSignedUp?() }
             } catch let error as AuthError {
                 switch error {
                 case .invalidEmail: emailError = error.errorDescription
                 case .emptyPassword, .weakPassword: passwordError = error.errorDescription
                 case .passwordMismatch: confirmError = error.errorDescription
                 case .emptyName: nameError = error.errorDescription
+                case .confirmationRequired, .providerNotConfigured: onToast?(error.errorDescription ?? "")
                 }
             } catch {
                 emailError = error.localizedDescription

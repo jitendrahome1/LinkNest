@@ -9,6 +9,7 @@ import SwiftData
 struct ProfileView: View {
     @Environment(AppContainer.self) private var container
     @Environment(AppState.self) private var appState
+    @Environment(AppRouter.self) private var router
 
     @Query(filter: #Predicate<ContentItem> { !$0.isArchived }) private var items: [ContentItem]
     @Query private var collections: [ContentCollection]
@@ -88,6 +89,14 @@ struct ProfileView: View {
                 LNGroupCard {
                     Button {
                         container.authService.signOut()
+                        Task { await container.syncService.stop() }
+                        // Local storage is shared by whoever's signed in on this
+                        // device — clear it so the next account never sees this
+                        // one's library.
+                        container.contentRepository.clearLocal()
+                        container.collectionRepository.clearLocal()
+                        container.tagRepository.clearLocal()
+                        router.resetToHome()
                         appState.phase = .auth
                     } label: {
                         Text(String(localized: "profile.signOut", defaultValue: "Sign Out"))

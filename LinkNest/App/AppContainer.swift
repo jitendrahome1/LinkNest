@@ -39,6 +39,7 @@ final class AppContainer {
     let filterContent: FilterContentUseCase
     let createCollection: CreateCollectionUseCase
     let fetchMetadata: FetchContentMetadataUseCase
+    let seedDefaultCollections: SeedDefaultCollectionsUseCase
 
     init(inMemory: Bool = false) {
         modelContainer = ModelContainerProvider.make(inMemory: inMemory)
@@ -46,16 +47,18 @@ final class AppContainer {
         router = AppRouter()
 
         let context = modelContainer.mainContext
-        contentRepository = SwiftDataContentRepository(context: context)
-        collectionRepository = SwiftDataCollectionRepository(context: context)
-        tagRepository = SwiftDataTagRepository(context: context)
+        contentRepository = SwiftDataContentRepository(context: context, remote: SupabaseContentDataSource())
+        collectionRepository = SwiftDataCollectionRepository(context: context, remote: SupabaseCollectionDataSource())
+        tagRepository = SwiftDataTagRepository(context: context, remote: SupabaseTagDataSource())
 
         metadataService = RemoteMetadataService(fallback: MockMetadataService())
-        authService = MockAuthenticationService(keychain: KeychainManager())
+        authService = inMemory ? MockAuthenticationService(keychain: KeychainManager()) : SupabaseAuthenticationService()
         searchService = SearchService(content: contentRepository,
                                       collections: collectionRepository,
                                       tags: tagRepository)
-        syncService = NoopSyncService()
+        syncService = inMemory
+            ? NoopSyncService()
+            : SupabaseSyncService(content: contentRepository, collections: collectionRepository, tags: tagRepository)
         aiService = UnavailableAIService()
 
         saveContent = SaveContentUseCase(content: contentRepository, tags: tagRepository)
@@ -63,6 +66,7 @@ final class AppContainer {
         filterContent = FilterContentUseCase()
         createCollection = CreateCollectionUseCase(collections: collectionRepository)
         fetchMetadata = FetchContentMetadataUseCase(metadata: metadataService)
+        seedDefaultCollections = SeedDefaultCollectionsUseCase(collections: collectionRepository)
 
         MockSeeder.seedIfNeeded(context: context)
         HTMLEntityRepair.run(content: contentRepository)

@@ -64,6 +64,18 @@ final class AppRouter {
         tab = newTab
     }
 
+    /// Called on sign-out / sign-in so a new session always lands on
+    /// Home, instead of wherever the last session's tab/nav stack was.
+    func resetToHome() {
+        sheet = nil
+        pendingRoute = nil
+        tab = .home
+        homePath = []
+        savedPath = []
+        collectionsPath = []
+        profilePath = []
+    }
+
     /// The tab bar hides on pushed screens, matching the prototype.
     var isTabBarVisible: Bool {
         switch tab {

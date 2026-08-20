@@ -18,6 +18,8 @@ enum AuthError: Error, LocalizedError {
     case weakPassword
     case passwordMismatch
     case emptyName
+    case confirmationRequired
+    case providerNotConfigured
 
     var errorDescription: String? {
         switch self {
@@ -26,6 +28,8 @@ enum AuthError: Error, LocalizedError {
         case .weakPassword: String(localized: "auth.weakPassword", defaultValue: "Password must be at least 8 characters")
         case .passwordMismatch: String(localized: "auth.mismatch", defaultValue: "Passwords do not match")
         case .emptyName: String(localized: "auth.emptyName", defaultValue: "Please enter your name")
+        case .confirmationRequired: String(localized: "auth.confirmationRequired", defaultValue: "Check your email to confirm your account, then sign in.")
+        case .providerNotConfigured: String(localized: "auth.providerNotConfigured", defaultValue: "This sign-in method isn't set up yet.")
         }
     }
 }

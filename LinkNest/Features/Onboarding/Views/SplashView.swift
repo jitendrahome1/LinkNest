@@ -52,6 +52,10 @@ struct SplashView: View {
 
     private func advance() {
         guard appState.phase == .splash else { return }
-        appState.advanceFromSplash(isSignedIn: container.authService.currentSession != nil)
+        let isSignedIn = container.authService.currentSession != nil
+        if isSignedIn {
+            Task { await container.syncService.syncNow() }
+        }
+        appState.advanceFromSplash(isSignedIn: isSignedIn)
     }
 }

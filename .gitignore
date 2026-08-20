@@ -1,0 +1,16 @@
+# Xcode
+build/
+DerivedData/
+*.hmap
+*.ipa
+*.xcuserstate
+
+# Swift Package Manager
+.swiftpm/
+.build/
+
+# Secrets — never commit real Supabase credentials
+LinkNest/Core/Supabase/SupabaseSecrets.swift
+
+# macOS
+.DS_Store
