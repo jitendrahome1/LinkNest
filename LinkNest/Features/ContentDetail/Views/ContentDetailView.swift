@@ -44,7 +44,8 @@ private struct DetailContent: View {
                 topBar
                 ThumbnailView(hue: item.thumbnailHue, platform: item.platform,
                               duration: item.duration, thumbnailURL: item.thumbnailURL,
-                              cornerRadius: LNRadius.hero, badgeScale: 1.35, contentType: item.contentType)
+                              cornerRadius: LNRadius.hero, badgeScale: 1.35, contentType: item.contentType,
+                              pageCount: item.totalPages)
                     .frame(height: 200)
                     .padding(.horizontal, LNSpacing.gutter)
                     .padding(.top, 12)

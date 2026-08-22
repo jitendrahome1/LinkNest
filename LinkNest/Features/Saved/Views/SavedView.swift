@@ -124,8 +124,13 @@ private struct SavedContent: View {
     }
 
     private func open(_ item: ContentItem) {
-        container.contentRepository.markViewed(item)
+        // Push first — markViewed's SwiftData save is synchronous disk I/O,
+        // and running it before the push made every tap block the start of
+        // the navigation transition, showing up as a stutter before it moved.
         router.push(.viewer(for: item))
+        Task { @MainActor in
+            container.contentRepository.markViewed(item)
+        }
     }
 
     private func toggleFavorite(_ item: ContentItem) {
@@ -147,8 +152,10 @@ struct ItemContextMenu: ViewModifier {
     func body(content: Content) -> some View {
         content.contextMenu {
             Button {
-                container.contentRepository.markViewed(item)
                 router.push(.viewer(for: item))
+                Task { @MainActor in
+                    container.contentRepository.markViewed(item)
+                }
             } label: { Label(String(localized: "menu.open", defaultValue: "Open"), systemImage: "arrow.up.right.square") }
 
             Button {

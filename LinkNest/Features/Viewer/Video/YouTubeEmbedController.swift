@@ -1,43 +1,96 @@
 //
 //  YouTubeEmbedController.swift
 //  Drives the same LinkNestPlayerControls/LinkNestPlayerBottomBar used for
-//  AVPlayer sources over YouTube's officially embedded IFrame Player, so
-//  the visible transport UI stays LinkNest's own design instead of
-//  YouTube's own web-player chrome (small text, foreign styling). Talks to
-//  the player exclusively through the official YT.Player JS API (see the
-//  wrapper page built in WebPlayerView) — commands out, state updates in
-//  via a WKScriptMessageHandler bridge. Never touches a raw stream URL.
+//  AVPlayer sources over YouTubePlayerKit's YouTubePlayer, so the visible
+//  transport UI stays LinkNest's own design instead of YouTube's own
+//  web-player chrome (small text, foreign styling). YouTubePlayerKit wraps
+//  YouTube's official IFrame Player API (developers.google.com/youtube/iframe_api_reference)
+//  — a maintained, ToS-compliant integration — never a raw stream URL.
+//
+//  `player` is exposed so the view layer can render it via YouTubePlayerKit's
+//  own `YouTubePlayerView`; this controller only adds the observable
+//  transport state (isPlaying/currentTime/duration) and command methods
+//  matching VideoPlayerViewModel's shape, so the same control components
+//  work against either one without caring which is behind them. Native
+//  controls/fullscreen button are disabled (see `parameters` below) since
+//  LinkNestPlayerControls/LinkNestPlayerBottomBar are the only visible
+//  transport, in and out of fullscreen.
 //
 
 import Foundation
-@preconcurrency import WebKit
+import Combine
 import Observation
+import YouTubePlayerKit
 
 @Observable
 @MainActor
 final class YouTubeEmbedController {
+    let videoID: String
+    let player: YouTubePlayer
+
     private(set) var isPlaying = false
     private(set) var currentTime: Double = 0
     private(set) var duration: Double = 0
     var isMuted = false {
-        didSet { evaluate(isMuted ? "player && player.mute();" : "player && player.unMute();") }
+        didSet {
+            guard isMuted != oldValue else { return }
+            Task { [player, isMuted] in try? await (isMuted ? player.mute() : player.unmute()) }
+        }
     }
     var speed: Double = 1 {
-        didSet { evaluate("player && player.setPlaybackRate(\(speed));") }
+        didSet {
+            guard speed != oldValue else { return }
+            Task { [player, speed] in try? await player.set(playbackRate: .init(value: speed)) }
+        }
     }
 
-    weak var webView: WKWebView?
+    private var cancellables: Set<AnyCancellable> = []
 
     var progress: Double {
         guard duration > 0 else { return 0 }
         return min(1, max(0, currentTime / duration))
     }
 
+    init(videoID: String) {
+        self.videoID = videoID
+        player = YouTubePlayer(
+            source: .video(id: videoID),
+            parameters: .init(
+                autoPlay: false,
+                showControls: false,
+                showFullscreenButton: false
+            )
+        )
+        // YouTube's own iframe still handles raw touches (tap-to-pause,
+        // its branded title/share/"up next" chrome) even with showControls
+        // disabled — our SwiftUI overlay sits visually on top but the
+        // webView underneath was still first responder for touches, so
+        // taps intended for LinkNestPlayerControls could pause the video via
+        // YouTube's own handler and surface YouTube's own (un-hideable)
+        // paused-state UI instead of ours. `player.webView` isn't public,
+        // so the actual disabling happens in YouTubeWebViewInteractionDisabler
+        // (VideoPlayerView.swift), which finds the WKWebView by walking the
+        // UIKit hierarchy instead.
+
+        player.playbackStatePublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] state in self?.isPlaying = (state == .playing) }
+            .store(in: &cancellables)
+        player.currentTimePublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] time in self?.currentTime = time.converted(to: .seconds).value }
+            .store(in: &cancellables)
+        player.durationPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] time in self?.duration = time.converted(to: .seconds).value }
+            .store(in: &cancellables)
+    }
+
     func togglePlay() { isPlaying ? pause() : play() }
-    func play() { evaluate("player && player.playVideo();") }
-    func pause() { evaluate("player && player.pauseVideo();") }
-    func skipBack() { seek(to: currentTime - 10) }
-    func skipForward() { seek(to: currentTime + 10) }
+    func play() { Task { [player] in try? await player.play() } }
+    func pause() { Task { [player] in try? await player.pause() } }
+    func skipBack() { Task { [player] in try? await player.rewind(by: .init(value: 10, unit: .seconds)) } }
+    func skipForward() { Task { [player] in try? await player.fastForward(by: .init(value: 10, unit: .seconds)) } }
 
     /// Live drag preview — local only, no command sent until commitScrub.
     func scrub(toFraction fraction: Double) {
@@ -50,35 +103,6 @@ final class YouTubeEmbedController {
     func seek(to seconds: Double) {
         let clamped = min(max(0, seconds), duration > 0 ? duration : seconds)
         currentTime = clamped
-        evaluate("player && player.seekTo(\(clamped), true);")
-    }
-
-    /// Reapplies local state to a freshly (re)created player instance —
-    /// used when the inline embed is torn down and rebuilt for fullscreen,
-    /// since that's a new WKWebView/YT.Player, not the same one.
-    func resumeAfterReady() {
-        if currentTime > 0 { evaluate("player && player.seekTo(\(currentTime), true);") }
-        if isMuted { evaluate("player && player.mute();") }
-        if speed != 1 { evaluate("player && player.setPlaybackRate(\(speed));") }
-        if isPlaying { play() }
-    }
-
-    /// Parses bridge messages relayed from the wrapper page's JS: a
-    /// periodic time-code tick, or a YT.Player onStateChange event
-    /// (1 = playing, 2 = paused — see the IFrame API's documented states).
-    func handle(_ body: [String: Any]) {
-        guard let type = body["type"] as? String else { return }
-        switch type {
-        case "tick":
-            if let t = body["currentTime"] as? Double { currentTime = t }
-            if let d = body["duration"] as? Double, d > 0 { duration = d }
-        case "stateChange":
-            if let state = body["state"] as? Int { isPlaying = (state == 1) }
-        default: break
-        }
-    }
-
-    private func evaluate(_ js: String) {
-        webView?.evaluateJavaScript(js)
+        Task { [player] in try? await player.seek(to: .init(value: clamped, unit: .seconds)) }
     }
 }

@@ -43,6 +43,10 @@ struct CollectionDetailView: View {
                         router.pop()
                     }
                     Spacer()
+                    LNIconButton(systemImage: "ellipsis", tint: LNColor.primaryText,
+                                 accessibilityLabel: String(localized: "a11y.collectionMenu", defaultValue: "Collection options")) {
+                        router.sheet = .collectionMenu(collection.id)
+                    }
                 }
                 .padding(.horizontal, 14)
 
@@ -97,8 +101,10 @@ struct CollectionDetailView: View {
     }
 
     private func open(_ item: ContentItem) {
-        container.contentRepository.markViewed(item)
         router.push(.viewer(for: item))
+        Task { @MainActor in
+            container.contentRepository.markViewed(item)
+        }
     }
 
     private func toggleFavorite(_ item: ContentItem) {

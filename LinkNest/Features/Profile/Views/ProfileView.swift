@@ -67,6 +67,8 @@ struct ProfileView: View {
                     .padding(.horizontal, 15)
                     .frame(minHeight: 52)
                     LNRowSeparator()
+                    manageTagsRow
+                    LNRowSeparator()
                     settingsRow(String(localized: "profile.notifications", defaultValue: "Notifications"))
                     LNRowSeparator()
                     HStack {
@@ -124,6 +126,28 @@ struct ProfileView: View {
     private var initials: String {
         let parts = (session?.userName ?? "Maya Chen").split(separator: " ").prefix(2)
         return parts.map { String($0.prefix(1)).uppercased() }.joined()
+    }
+
+    private var manageTagsRow: some View {
+        Button {
+            router.push(.manageTags)
+        } label: {
+            HStack {
+                Text(String(localized: "profile.manageTags", defaultValue: "Manage Tags"))
+                    .font(.system(size: 15))
+                    .foregroundStyle(LNColor.primaryText)
+                Spacer()
+                Text("\(tags.count)")
+                    .font(.system(size: 13.5))
+                    .foregroundStyle(LNColor.secondaryText)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(LNColor.tertiaryText)
+            }
+            .padding(.horizontal, 15)
+            .frame(minHeight: 52)
+        }
+        .buttonStyle(.plain)
     }
 
     private func settingsRow(_ title: String) -> some View {

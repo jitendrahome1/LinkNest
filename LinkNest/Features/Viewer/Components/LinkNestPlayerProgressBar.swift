@@ -28,15 +28,19 @@ struct LinkNestPlayerProgressBar: View {
                 ZStack(alignment: .leading) {
                     Capsule()
                         .fill(LNColor.chip)
-                        .frame(height: 5)
+                        .frame(height: 6)
                     Capsule()
                         .fill(LNColor.accent)
-                        .frame(width: geo.size.width * displayed, height: 5)
+                        .frame(width: geo.size.width * displayed, height: 6)
+                        .shadow(color: LNColor.accent.opacity(0.55), radius: 4, y: 0)
                     Circle()
                         .fill(trackTint)
-                        .frame(width: 13, height: 13)
-                        .shadow(color: .black.opacity(0.4), radius: 3, y: 1)
-                        .offset(x: geo.size.width * displayed - 6.5)
+                        .frame(width: 15, height: 15)
+                        .overlay {
+                            Circle().strokeBorder(.black.opacity(0.08), lineWidth: 0.5)
+                        }
+                        .shadow(color: .black.opacity(0.35), radius: 4, y: 1.5)
+                        .offset(x: geo.size.width * displayed - 7.5)
                 }
                 .frame(height: geo.size.height)
                 .contentShape(Rectangle())

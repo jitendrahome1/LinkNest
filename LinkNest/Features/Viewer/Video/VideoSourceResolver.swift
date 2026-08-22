@@ -61,6 +61,7 @@ struct DefaultVideoSourceResolver: VideoSourceResolver {
         if let embed = Self.vimeoEmbed(host: host, url: url) { return .embeddable(embed) }
         if let embed = Self.dailymotionEmbed(host: host, url: url) { return .embeddable(embed) }
         if let embed = Self.twitchEmbed(host: host, url: url) { return .embeddable(embed) }
+        if let embed = Self.facebookEmbed(host: host, url: url) { return .embeddable(embed) }
         if host.contains("instagram") || host.contains("facebook") || host.contains("linkedin")
             || host.contains("x.com") || host.contains("twitter") {
             return .webPage(url)
@@ -127,6 +128,23 @@ struct DefaultVideoSourceResolver: VideoSourceResolver {
             return URL(string: "https://player.twitch.tv/?video=\(vod)&parent=linknest.app&autoplay=false")
         }
         return nil
+    }
+
+    /// Facebook video/watch/reel permalinks never expose a direct media file
+    /// (AVPlayer has nothing to stream) and loading the raw page in a
+    /// WKWebView just hits Facebook's login wall. Facebook's own Video
+    /// Embed Plugin (developers.facebook.com/docs/plugins/embedded-video-player)
+    /// is built exactly for this: it renders a public video's player without
+    /// requiring the viewer to be logged in, since it's designed to be
+    /// embedded on third-party sites. Only used for permalink shapes that
+    /// are unambiguously a single video — a bare profile/group/post link has
+    /// no video for the plugin to target.
+    private static func facebookEmbed(host: String, url: URL) -> URL? {
+        guard host.contains("facebook.com") else { return nil }
+        let path = url.path.lowercased()
+        guard path.contains("/videos/") || path.contains("/watch") || path.contains("/reel/") else { return nil }
+        guard let encodedHref = url.absoluteString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return nil }
+        return URL(string: "https://www.facebook.com/plugins/video.php?href=\(encodedHref)&show_text=false")
     }
 
     private static func firstMatch(in string: String, pattern: String) -> String? {

@@ -31,6 +31,8 @@ struct CollectionsView: View {
                     ForEach(collections) { collection in
                         LNCollectionCard(collection: collection, showsThumbnails: true) {
                             router.push(.collectionDetail(collection.id))
+                        } onMenu: {
+                            router.sheet = .collectionMenu(collection.id)
                         }
                     }
                 }

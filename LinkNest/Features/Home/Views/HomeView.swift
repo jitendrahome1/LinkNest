@@ -59,7 +59,7 @@ struct HomeView: View {
                     .padding(.top, 24)
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
-                            ForEach(items.prefix(8)) { item in
+                            ForEach(items.prefix(6)) { item in
                                 LNContentCardLarge(item: item, onOpen: { open(item) },
                                                    onToggleFavorite: { toggleFavorite(item) })
                             }
@@ -154,8 +154,13 @@ struct HomeView: View {
     }
 
     private func open(_ item: ContentItem) {
-        container.contentRepository.markViewed(item)
+        // Push first — markViewed's SwiftData save is synchronous disk I/O,
+        // and running it before the push made every tap block the start of
+        // the navigation transition, showing up as a stutter before it moved.
         router.push(.viewer(for: item))
+        Task { @MainActor in
+            container.contentRepository.markViewed(item)
+        }
     }
 
     private func toggleFavorite(_ item: ContentItem) {

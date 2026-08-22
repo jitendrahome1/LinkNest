@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		D4A2D1703035DF99001CB256 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = D4AF610230358CB4000AE39D /* Supabase */; };
+		D4A2D46830378222001CB256 /* YouTubePlayerKit in Frameworks */ = {isa = PBXBuildFile; productRef = 9687280115D99D7573640126 /* YouTubePlayerKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +28,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D4A2D46830378222001CB256 /* YouTubePlayerKit in Frameworks */,
 				D4A2D1703035DF99001CB256 /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -71,6 +73,7 @@
 			name = LinkNest;
 			packageProductDependencies = (
 				D4AF610230358CB4000AE39D /* Supabase */,
+				9687280115D99D7573640126 /* YouTubePlayerKit */,
 			);
 			productName = LinkNest;
 			productReference = D4AF608E30358CB4000AE39D /* LinkNest.app */;
@@ -102,6 +105,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				D4AF610130358CB4000AE39D /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				0AB87E646CDD4EE249BF8687 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D4AF608F30358CB4000AE39D /* Products */;
@@ -360,6 +364,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		0AB87E646CDD4EE249BF8687 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/SvenTiigi/YouTubePlayerKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
 		D4AF610130358CB4000AE39D /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/supabase/supabase-swift";
@@ -371,6 +383,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		9687280115D99D7573640126 /* YouTubePlayerKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0AB87E646CDD4EE249BF8687 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */;
+			productName = YouTubePlayerKit;
+		};
 		D4AF610230358CB4000AE39D /* Supabase */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = D4AF610130358CB4000AE39D /* XCRemoteSwiftPackageReference "supabase-swift" */;

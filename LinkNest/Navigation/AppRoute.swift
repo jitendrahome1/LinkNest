@@ -13,6 +13,7 @@ enum AppRoute: Hashable {
     case search
     case videoPlayer(UUID)
     case pdfReader(UUID)
+    case manageTags
 
     /// Routes a saved item to its native viewer — video and PDF get the
     /// immersive player/reader, everything else keeps the standard detail screen.

@@ -70,7 +70,15 @@ final class VideoPlayerViewModel {
         self.sourceResolver = sourceResolver
         duration = item.playbackDurationSeconds
         currentTime = item.playbackPositionSeconds
-        try? AVAudioSession.sharedInstance().setCategory(.playback)
+        // AVAudioSession category changes can block for a while negotiating
+        // with the audio daemon (worse with Bluetooth/other apps' audio in
+        // play) — doing this synchronously on the main actor during init,
+        // right as the push transition starts, was the "frozen, can't tap
+        // anything while it loads" symptom. Off the main thread, it can't
+        // stall the transition or touch handling.
+        Task.detached(priority: .userInitiated) {
+            try? AVAudioSession.sharedInstance().setCategory(.playback)
+        }
     }
 
     func load() {

@@ -46,6 +46,8 @@ struct MainTabView: View {
             case .filters: FilterSheet()
             case .sort: SortSheet()
             case .newCollection: NewCollectionSheet()
+            case .editCollection(let id): NewCollectionSheet(editingID: id)
+            case .collectionMenu(let id): CollectionMenuSheet(collectionID: id)
             case .itemMenu(let id): ItemMenuSheet(itemID: id)
             case .editItem(let id): EditItemSheet(itemID: id)
             }
@@ -61,6 +63,7 @@ struct MainTabView: View {
         case .search: SearchView()
         case .videoPlayer(let id): VideoPlayerView(itemID: id)
         case .pdfReader(let id): PDFReaderView(itemID: id)
+        case .manageTags: TagManagementView()
         }
     }
 }

@@ -9,6 +9,9 @@ struct LNCollectionCard: View {
     /// Larger variant on the Collections screen; smaller on Home.
     var showsThumbnails = false
     var onOpen: () -> Void
+    /// Overflow menu (Open / Rename & Recolor / Delete). Only shown on the
+    /// larger Collections-screen variant, matching the prototype.
+    var onMenu: (() -> Void)? = nil
 
     private var tint: Color { Color(hex: collection.colorHex) }
 
@@ -26,14 +29,30 @@ struct LNCollectionCard: View {
                         }
                     Spacer()
                     if showsThumbnails {
-                        HStack(spacing: -8) {
-                            ForEach(Array(collection.items.prefix(2).enumerated()), id: \.offset) { _, item in
-                                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                    .fill(LinearGradient(
-                                        colors: [Color(hue: item.thumbnailHue / 360, saturation: 0.18, brightness: 0.92),
-                                                 Color(hue: ((item.thumbnailHue + 45).truncatingRemainder(dividingBy: 360)) / 360, saturation: 0.45, brightness: 0.72)],
-                                        startPoint: .topLeading, endPoint: .bottomTrailing))
-                                    .frame(width: 22, height: 22)
+                        VStack(alignment: .trailing, spacing: 9) {
+                            if let onMenu {
+                                Button(action: onMenu) {
+                                    Circle()
+                                        .fill(LNColor.chip)
+                                        .frame(width: 26, height: 26)
+                                        .overlay {
+                                            Image(systemName: "ellipsis")
+                                                .font(.system(size: 12, weight: .semibold))
+                                                .foregroundStyle(LNColor.tertiaryText)
+                                        }
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(String(localized: "a11y.collectionMenu", defaultValue: "Collection options"))
+                            }
+                            HStack(spacing: -8) {
+                                ForEach(Array(collection.items.prefix(2).enumerated()), id: \.offset) { _, item in
+                                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                        .fill(LinearGradient(
+                                            colors: [Color(hue: item.thumbnailHue / 360, saturation: 0.18, brightness: 0.92),
+                                                     Color(hue: ((item.thumbnailHue + 45).truncatingRemainder(dividingBy: 360)) / 360, saturation: 0.45, brightness: 0.72)],
+                                            startPoint: .topLeading, endPoint: .bottomTrailing))
+                                        .frame(width: 22, height: 22)
+                                }
                             }
                         }
                     }

@@ -10,6 +10,9 @@ import Observation
 /// Quick-action requests from Home ("Favorites", "Watch Later", "Recent").
 enum SavedFilterRequest {
     case favorites, watchLater, recent
+    /// Jumping in from Manage Tags — reuses the existing text search since
+    /// FilterContentUseCase already matches a query against tag names.
+    case tag(String)
 }
 
 @Observable
@@ -33,6 +36,7 @@ final class SavedViewModel {
         case .favorites: filter.favoritesOnly = true
         case .watchLater: filter.watchLaterOnly = true
         case .recent: break
+        case .tag(let name): filter.query = name
         }
     }
 

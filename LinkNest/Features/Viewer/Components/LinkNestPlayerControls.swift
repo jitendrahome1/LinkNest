@@ -15,22 +15,29 @@ struct LinkNestPlayerControls: View {
     var onSkipForward: () -> Void
 
     var body: some View {
-        HStack(spacing: 30) {
+        HStack(spacing: 28) {
             skipButton(systemImage: "gobackward.10",
                        label: String(localized: "player.back10", defaultValue: "Back 10 seconds"),
                        action: onSkipBack)
 
             Button(action: onTogglePlay) {
                 Circle()
-                    .fill(LNColor.accent)
-                    .frame(width: 64, height: 64)
+                    .fill(
+                        LinearGradient(colors: [LNColor.accent, LNColor.accent.opacity(0.82)],
+                                      startPoint: .top, endPoint: .bottom)
+                    )
+                    .frame(width: 70, height: 70)
+                    .overlay {
+                        Circle().strokeBorder(.white.opacity(0.22), lineWidth: 1)
+                    }
                     .overlay {
                         Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 24, weight: .semibold))
+                            .font(.system(size: 25, weight: .semibold))
                             .foregroundStyle(.white)
                             .offset(x: isPlaying ? 0 : 2)
                     }
-                    .shadow(color: .black.opacity(0.35), radius: 14, y: 6)
+                    .shadow(color: LNColor.accent.opacity(0.5), radius: 20, y: 8)
+                    .shadow(color: .black.opacity(0.25), radius: 8, y: 3)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(isPlaying
@@ -49,12 +56,16 @@ struct LinkNestPlayerControls: View {
             Circle()
                 .fill(.ultraThinMaterial)
                 .environment(\.colorScheme, .dark)
-                .frame(width: 46, height: 46)
+                .frame(width: 48, height: 48)
+                .overlay {
+                    Circle().strokeBorder(.white.opacity(0.16), lineWidth: 1)
+                }
                 .overlay {
                     Image(systemName: systemImage)
-                        .font(.system(size: 19, weight: .regular))
+                        .font(.system(size: 19, weight: .medium))
                         .foregroundStyle(.white)
                 }
+                .shadow(color: .black.opacity(0.2), radius: 6, y: 2)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
@@ -128,39 +139,41 @@ struct LinkNestPlayerBottomBar: View {
             Text(label)
                 .font(.system(size: 12.5, weight: .bold))
                 .foregroundStyle(isOverlay ? .white : LNColor.primaryText)
-                .padding(.horizontal, 10)
-                .frame(height: 30)
-                .frame(minWidth: 44)
-                .background {
-                    if isOverlay {
-                        RoundedRectangle(cornerRadius: 15, style: .continuous)
-                            .fill(.ultraThinMaterial).environment(\.colorScheme, .dark)
-                    } else {
-                        RoundedRectangle(cornerRadius: 15, style: .continuous).fill(LNColor.chip)
-                    }
-                }
+                .padding(.horizontal, 12)
+                .frame(height: 32)
+                .frame(minWidth: 46)
+                .background { chipBackground }
         }
         .buttonStyle(.plain)
     }
 
     private func iconChip(systemImage: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Group {
-                if isOverlay {
-                    RoundedRectangle(cornerRadius: 15, style: .continuous)
-                        .fill(.ultraThinMaterial).environment(\.colorScheme, .dark)
-                } else {
-                    RoundedRectangle(cornerRadius: 15, style: .continuous).fill(LNColor.chip)
+            chipBackground
+                .frame(width: 32, height: 32)
+                .overlay {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 13.5, weight: .semibold))
+                        .foregroundStyle(isOverlay ? .white : LNColor.secondaryText)
                 }
-            }
-            .frame(width: 30, height: 30)
-            .overlay {
-                Image(systemName: systemImage)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(isOverlay ? .white : LNColor.secondaryText)
-            }
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
+    }
+
+    @ViewBuilder
+    private var chipBackground: some View {
+        if isOverlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .environment(\.colorScheme, .dark)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(.white.opacity(0.14), lineWidth: 1)
+                }
+        } else {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(LNColor.chip)
+        }
     }
 }

@@ -16,9 +16,13 @@ struct ThumbnailView: View {
     var badgeScale: CGFloat = 1
     /// When .pdf, the corner badge reads "PDF" instead of the platform monogram.
     var contentType: ContentType = .other
+    /// PDF page count, shown in the corner badge (e.g. "18p") in place of a
+    /// duration — a PDF has no duration, so that badge used to just be blank,
+    /// giving no sense of length at a glance.
+    var pageCount: Int = 0
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
             gradient
             // Real scraped thumbnails can have dense text baked into the
             // photo itself; a scrim keeps the badges legible over any image.
@@ -27,6 +31,13 @@ struct ThumbnailView: View {
                               startPoint: .center, endPoint: .bottom)
                     .allowsHitTesting(false)
             }
+            // A centered, translucent kind icon makes video vs. PDF vs. plain
+            // link legible at a glance, without reading any text — the
+            // platform/duration corner badges alone left every thumbnail
+            // (video, PDF, article) looking the same shape.
+            centerKindIcon
+        }
+        .overlay(alignment: .bottom) {
             HStack {
                 if contentType == .pdf {
                     badge(text: "PDF", background: Color(hex: 0xB3443C))
@@ -34,14 +45,49 @@ struct ThumbnailView: View {
                     badge(text: platform.monogram, background: Color(hex: platform.badgeHex))
                 }
                 Spacer()
-                if let duration {
-                    badge(text: duration, background: Color(hex: 0x0A0A10, alpha: 0.55))
+                if let cornerBadgeText {
+                    badge(text: cornerBadgeText, background: Color(hex: 0x0A0A10, alpha: 0.55))
                 }
             }
             .padding(6 * badgeScale)
         }
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .accessibilityHidden(true)
+    }
+
+    private var cornerBadgeText: String? {
+        if contentType == .pdf {
+            return pageCount > 0 ? "\(pageCount)p" : nil
+        }
+        return duration
+    }
+
+    @ViewBuilder
+    private var centerKindIcon: some View {
+        switch contentType {
+        case .video:
+            kindCircle {
+                Image(systemName: "play.fill")
+                    .offset(x: 1.5 * badgeScale)
+            }
+        case .pdf:
+            kindCircle {
+                Image(systemName: "doc.fill")
+            }
+        default:
+            EmptyView()
+        }
+    }
+
+    private func kindCircle(@ViewBuilder icon: () -> some View) -> some View {
+        Circle()
+            .fill(Color(hex: 0x0A0A10, alpha: 0.4))
+            .frame(width: 38 * badgeScale, height: 38 * badgeScale)
+            .overlay {
+                icon()
+                    .font(.system(size: 15 * badgeScale, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
     }
 
     @ViewBuilder

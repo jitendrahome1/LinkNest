@@ -26,6 +26,7 @@ struct SaveLinkView: View {
             let model = SaveLinkViewModel(fetchMetadata: container.fetchMetadata,
                                           saveContent: container.saveContent,
                                           collections: container.collectionRepository,
+                                          tags: container.tagRepository,
                                           prefillURL: prefillURL)
             model.onError = { appState.showToast($0) }
             vm = model
@@ -143,6 +144,45 @@ private struct SaveLinkContent: View {
         .modifier(CardShadow())
     }
 
+    private var newTagField: some View {
+        HStack(spacing: 9) {
+            Text("#")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(LNColor.tertiaryText)
+            TextField(String(localized: "tags.newPlaceholder", defaultValue: "Create a new tag"), text: $vm.newTagName)
+                .font(LNFont.body)
+                .foregroundStyle(LNColor.primaryText)
+                .submitLabel(.done)
+                .onSubmit { vm.commitNewTag() }
+            Button {
+                vm.cancelAddTag()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(LNColor.tertiaryText)
+                    .frame(width: 32, height: 32)
+                    .background(LNColor.chip, in: Circle())
+            }
+            .buttonStyle(.plain)
+            Button {
+                vm.commitNewTag()
+            } label: {
+                Text(String(localized: "action.add", defaultValue: "Add"))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(LNColor.accent)
+                    .padding(.horizontal, 13)
+                    .frame(height: 32)
+                    .background(LNColor.accentSoft, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .opacity(vm.newTagName.trimmingCharacters(in: .whitespaces).isEmpty ? 0.45 : 1)
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 48)
+        .background(LNColor.cardBackground, in: RoundedRectangle(cornerRadius: LNRadius.card, style: .continuous))
+        .modifier(CardShadow())
+    }
+
     private var detailsForm: some View {
         VStack(alignment: .leading, spacing: 0) {
             LNSectionLabel(text: String(localized: "save.collection", defaultValue: "Collection"))
@@ -157,16 +197,47 @@ private struct SaveLinkContent: View {
             }
             .padding(.top, 9)
 
-            LNSectionLabel(text: String(localized: "save.tags", defaultValue: "Tags"))
-                .padding(.top, 18)
+            HStack(alignment: .firstTextBaseline) {
+                LNSectionLabel(text: String(localized: "save.tags", defaultValue: "Tags"))
+                Spacer()
+                Button {
+                    router.push(.manageTags)
+                } label: {
+                    Text(String(localized: "save.manageTags", defaultValue: "Manage Tags"))
+                        .font(LNFont.chip)
+                        .foregroundStyle(LNColor.accent)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.top, 18)
+
             FlowLayout(spacing: 8) {
-                ForEach(SaveLinkViewModel.suggestedTags, id: \.self) { tag in
-                    LNFilterChip(label: "#\(tag)", isSelected: vm.selectedTags.contains(tag)) {
-                        vm.toggleTag(tag)
+                ForEach(vm.allTags) { tag in
+                    LNFilterChip(label: "#\(tag.name)", isSelected: vm.selectedTags.contains(tag.name)) {
+                        vm.toggleTag(tag.name)
                     }
+                }
+                if !vm.isAddingTag {
+                    Button {
+                        vm.beginAddTag()
+                    } label: {
+                        Label(String(localized: "save.newTag", defaultValue: "New Tag"), systemImage: "plus")
+                            .labelStyle(.titleAndIcon)
+                            .font(LNFont.chip)
+                            .foregroundStyle(LNColor.accent)
+                            .padding(.horizontal, 13)
+                            .frame(height: 32)
+                            .background(LNColor.accentSoft, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.top, 9)
+
+            if vm.isAddingTag {
+                newTagField
+                    .padding(.top, 9)
+            }
 
             LNSectionLabel(text: String(localized: "save.notes", defaultValue: "Notes"))
                 .padding(.top, 18)

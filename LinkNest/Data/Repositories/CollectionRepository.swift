@@ -12,7 +12,7 @@ protocol CollectionRepository: AnyObject {
     func all() -> [ContentCollection]
     func collection(id: UUID) -> ContentCollection?
     func insert(_ collection: ContentCollection)
-    func rename(_ collection: ContentCollection, to name: String)
+    func update(_ collection: ContentCollection, name: String, colorHex: UInt32)
     func delete(_ collection: ContentCollection)
 
     func syncPull() async
@@ -48,8 +48,9 @@ final class SwiftDataCollectionRepository: CollectionRepository {
         pushUpsert(collection)
     }
 
-    func rename(_ collection: ContentCollection, to name: String) {
+    func update(_ collection: ContentCollection, name: String, colorHex: UInt32) {
         collection.name = name
+        collection.colorHex = colorHex
         try? context.save()
         pushUpsert(collection)
     }
